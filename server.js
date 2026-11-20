@@ -46,6 +46,25 @@ if (!KEY_HEX || KEY_HEX.length !== 64) {
 }
 const KEY = Buffer.from(KEY_HEX, 'hex');
 
+// Layer 2 — deployment key.
+// The client's ciphertext is sealed a second time with KHEPRI_KEY before it
+// is stored, so data at rest is worthless without the runtime environment.
+// Be clear about the limit: this does NOT stop a compromised running server,
+// because it holds KEY and can strip this layer. Layer 1 (the password) is
+// the one the server cannot break.
+function seal(obj) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+  const ct = Buffer.concat([c.update(Buffer.from(JSON.stringify(obj), 'utf8')), c.final()]);
+  return { ct: ct.toString('base64'), iv: iv.toString('base64'), tag: c.getAuthTag().toString('base64') };
+}
+
+function unseal(blob) {
+  const d = crypto.createDecipheriv('aes-256-gcm', KEY, Buffer.from(blob.iv, 'base64'));
+  d.setAuthTag(Buffer.from(blob.tag, 'base64'));
+  return JSON.parse(Buffer.concat([d.update(Buffer.from(blob.ct, 'base64')), d.final()]).toString('utf8'));
+}
+
 // In-memory store. Deliberate: a paste is ephemeral, a restart is an
 // acceptable data loss, and this avoids a database entirely.
 const store = new Map(); // code -> {ct, iv, salt, expires}
@@ -117,8 +136,10 @@ const server = http.createServer(async (req, res) => {
     if (!ct || !iv || !salt) return send(res, 400, { error: 'missing fields' });
 
     const code = genCode();
+    // Store only the sealed blob: {ct, iv, tag} is the deployment-key
+    // ciphertext of {ct, iv, salt} — the client's AES-GCM envelope.
     store.set(code, {
-      ct, iv, salt,
+      blob: seal({ ct, iv, salt }),
       expires: Date.now() + DEFAULT_TTL_MS,
     });
     return send(res, 200, { code });
@@ -134,7 +155,12 @@ const server = http.createServer(async (req, res) => {
     }
     // Burn after reading: the ciphertext leaves exactly once.
     store.delete(code);
-    return send(res, 200, { iv: p.iv, ct: p.ct, salt: p.salt });
+    try {
+      return send(res, 200, unseal(p.blob));
+    } catch {
+      // Wrong deployment key for this blob, or corrupted storage.
+      return send(res, 500, { error: 'storage decrypt failed' });
+    }
   }
 
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {

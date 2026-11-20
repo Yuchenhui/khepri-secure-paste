@@ -12,17 +12,34 @@ https://paste.example.com/a7k2
 
 ## Why not PrivateBin
 
-PrivateBin's URL must contain the cipher key, so links are ~90 characters. This project trades per-paste keys for short links: the key is derived from a password at read time, and the deployment key gates access. Suitable for a single trusted user passing commands to their own machines — not a public pastebin.
+PrivateBin is the better tool if you want per-paste keys with zero server
+trust. Its cost is a ~90 character URL, because the cipher key must travel in
+the link itself.
 
-## Threat model
+This project optimises for a different constraint: a link you can retype on a
+restricted console. That means the key cannot live in the URL, so it comes
+from a password instead — and the 4-char code is an identifier, not a secret.
 
-| Protects against | Does not protect against |
-|---|---|
-| Passive network observers | Someone who knows the deployment key |
-| The server itself (stores only ciphertext) | A compromised browser |
-| Guessing a 4-char code | Keyloggers on the reading device |
+Both designs are sound. They are answering different questions.
 
-All pastes on one deployment share one derived key. That is the trade that makes the URL short.
+## Two layers of encryption
+
+| Layer | Where | Key | Protects against |
+|---|---|---|---|
+| 1. Client cipher | Browser, AES-256-GCM | PBKDF2(your password, random salt) | The server, network observers, anyone with the link |
+| 2. Deployment seal | Server, AES-256-GCM | `KHEPRI_KEY` from the environment | Data at rest — stolen memory dumps, backups, disk images |
+
+Layer 1 is the one that matters: the server never holds the password, so it
+cannot decrypt your paste even while serving it.
+
+Layer 2 seals the already-encrypted envelope with a key that exists only in
+the process environment. **It does not stop a compromised running server**,
+because that process holds the key and can strip this layer. What it buys is
+that data leaving the process — a crash dump, a memory snapshot, a future
+disk-based store — is worthless.
+
+Every paste uses a fresh random salt, so two pastes made with the same
+password do not share a cipher key.
 
 ## Deploy
 
