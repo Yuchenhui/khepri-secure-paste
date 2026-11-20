@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>khepri &middot; new paste</title>
+<style>
+  :root { --bg:#12181f; --fg:#d5dbe1; --acc:#4da3a3; --bd:#2a343f; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,sans-serif;
+         margin:0; display:flex; justify-content:center; padding:32px 16px; }
+  main { width:100%; max-width:680px; }
+  h1 { font-size:18px; margin:0 0 16px; color:var(--acc); }
+  textarea { width:100%; box-sizing:border-box; height:280px; background:#0d1218;
+             color:var(--fg); border:1px solid var(--bd); border-radius:4px;
+             padding:10px; font:13px/1.5 ui-monospace,monospace; resize:vertical; }
+  input[type=text], input[type=password] { width:100%; box-sizing:border-box;
+             background:#0d1218; color:var(--fg); border:1px solid var(--bd);
+             border-radius:4px; padding:9px; margin-bottom:10px; }
+  label { display:block; font-size:12px; color:#7d8a96; margin:10px 0 4px; }
+  .row { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  button { background:var(--acc); color:#0d1218; border:0; border-radius:4px;
+           padding:9px 18px; font-size:14px; cursor:pointer; }
+  button:hover { filter:brightness(1.1); }
+  #out { margin-top:16px; padding:12px; background:#0d1218; border:1px solid var(--bd);
+         border-radius:4px; display:none; word-break:break-all; }
+  #out a { color:var(--acc); }
+  .hint { color:#7d8a96; font-size:12px; margin-top:12px; line-height:1.6; }
+</style>
+</head>
+<body>
+<main>
+  <h1>khepri &middot; new paste</h1>
+  <textarea id="t" placeholder="Text, command or script. Newlines preserved exactly."></textarea>
+
+  <label for="pw">Password (optional)</label>
+  <input id="pw" type="text" placeholder="Leave empty for none" autocomplete="off">
+
+  <label><input type="checkbox" id="burn" checked> Burn after reading</label>
+
+  <div class="row">
+    <button id="go">Create</button>
+  </div>
+
+  <div id="out"></div>
+  <p class="hint">
+    The link is long because it carries a 256-bit random key in its fragment.
+    The fragment is never sent to the server. The server stores ciphertext only.
+    A password adds a second secret the server never sees.
+  </p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const ITERATIONS = 200000; // PBKDF2-SHA256, matches PrivateBin's order of magnitude
+
+// base64url without padding, safe in a URL fragment.
+function b64u(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function deriveKey(password, salt, keyBytes) {
+  const enc = new TextEncoder();
+  // PrivateBin: key material is random bytes with the password appended.
+  const material = new Uint8Array(keyBytes.length + password.length);
+  material.set(keyBytes, 0);
+  material.set(enc.encode(password), keyBytes.length);
+  const km = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:ITERATIONS, hash:'SHA-256' },
+    km, { name:'AES-GCM', length:256 }, false, ['encrypt']);
+}
+
+$('go').onclick = async () => {
+  const text = $('t').value;
+  if (!text) return;
+
+  const id = [...crypto.getRandomValues(new Uint8Array(8))]
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+  const salt = crypto.getRandomValues(new Uint8Array(8));
+  const iv = crypto.getRandomValues(new Uint8Array(16));
+  const password = $('pw').value;
+
+  const key = await deriveKey(password, salt, keyBytes);
+  const adata = new TextEncoder().encode(id);
+  const ct = await crypto.subtle.encrypt(
+    { name:'AES-GCM', iv, additionalData: adata }, key, new TextEncoder().encode(text));
+
+  const r = await fetch('/api/paste', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      id, ct:b64u(ct), iv:b64u(iv), salt:b64u(salt),
+      adata:b64u(adata), iterations:ITERATIONS, burn:$('burn').checked,
+    })
+  });
+  const j = await r.json();
+  if (j.error) return alert(j.error);
+
+  const longUrl = location.origin + '/?' + id + '#' + b64u(keyBytes);
+  $('out').style.display = 'block';
+  $('out').innerHTML =
+    'Long link:<br><a href="' + longUrl + '">' + longUrl + '</a>' +
+    '<br><br>Pass this whole link, or use the shortener below.';
+
+  const SHORTENER = '__SHORTENER__';
+  if (SHORTENER) {
+    const b = document.createElement('button');
+    b.textContent = 'Shorten';
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = 'Shortening...';
+      try {
+        const r2 = await fetch(SHORTENER + encodeURIComponent(longUrl));
+        const t = await r2.text();
+        const m = t.match(/https?:\/\/\S+/);
+        $('out').innerHTML += '<br><br>Short link:<br><a href="' +
+          (m ? m[0] : t) + '">' + (m ? m[0] : t) + '</a>';
+      } catch (e) {
+        $('out').innerHTML += '<br><br>Shorten failed.';
+      }
+      b.textContent = 'Shorten';
+      b.disabled = false;
+    };
+    $('out').appendChild(b);
+  }
+};
+</script>
+</body>
+</html>

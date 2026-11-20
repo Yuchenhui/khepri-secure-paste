@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>khepri</title>
+<title>khepri &middot; read paste</title>
 <style>
   :root { --bg:#12181f; --fg:#d5dbe1; --acc:#4da3a3; --bd:#2a343f; }
   body { background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,sans-serif;
@@ -26,58 +26,71 @@
 <body>
 <main>
   <h1>khepri &middot; read paste</h1>
-  <input id="pw" type="password" placeholder="Password" autocomplete="off">
+  <input id="pw" type="password" placeholder="Password (empty if none was set)" autocomplete="off">
   <button id="go">Decrypt</button>
   <div id="body"><p class="msg">This link works once and is destroyed on read.</p></div>
 </main>
 <script>
-const code = location.pathname.slice(1);
+// The paste id is in the query string (sent to the server).
+// The key is in the fragment (never sent to the server).
+const id = location.search.slice(1);
+const frag = decodeURIComponent(location.hash.slice(1));
 
-function b64ToBytes(s) {
-  const bin = atob(s); const a = new Uint8Array(bin.length);
+function b64uToBytes(s) {
+  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+  const a = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
   return a;
 }
 
-async function deriveKey(password, salt) {
-  const enc = new TextEncoder();
-  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' },
-    km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
-}
-
-async function load() {
-  const r = await fetch('/api/paste/' + code);
-  if (!r.ok) {
-    document.getElementById('body').innerHTML =
-      '<p class="err">Link not found, expired, or already read.</p>';
-    return null;
-  }
-  return r.json();
-}
-
 document.getElementById('go').onclick = async () => {
-  const pw = document.getElementById('pw').value;
-  if (!pw) return;
-  const data = await load();
-  if (!data) return;
+  const body = document.getElementById('body');
+  if (!id || !frag) {
+    body.innerHTML = '<p class="err">Malformed link: missing id or key.</p>';
+    return;
+  }
+
+  let d;
+  try {
+    const r = await fetch('/api/paste/' + id);
+    if (!r.ok) {
+      body.innerHTML = '<p class="err">Link not found, expired, or already read.</p>';
+      return;
+    }
+    d = await r.json();
+  } catch {
+    body.innerHTML = '<p class="err">Network error.</p>';
+    return;
+  }
+
+  const password = document.getElementById('pw').value;
 
   try {
-    const key = await deriveKey(pw, b64ToBytes(data.salt));
-    // AES-GCM verifies integrity: a wrong password throws here.
+    const enc = new TextEncoder();
+    const keyBytes = b64uToBytes(frag);
+    const salt = b64uToBytes(d.salt);
+    // Same construction as the sender: random bytes ++ password.
+    const material = new Uint8Array(keyBytes.length + password.length);
+    material.set(keyBytes, 0);
+    material.set(enc.encode(password), keyBytes.length);
+
+    const km = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt, iterations:d.iterations, hash:'SHA-256' },
+      km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+
+    // AES-GCM authenticates: a wrong password or a tampered id fails here.
     const pt = await crypto.subtle.decrypt(
-      { name:'AES-GCM', iv:b64ToBytes(data.iv) }, key, b64ToBytes(data.ct));
-    const text = new TextDecoder().decode(pt);
-    // textContent preserves every newline and every character.
+      { name:'AES-GCM', iv:b64uToBytes(d.iv), additionalData:b64uToBytes(d.adata) },
+      key, b64uToBytes(d.ct));
+
     const pre = document.createElement('pre');
-    pre.textContent = text;
-    const box = document.getElementById('body');
-    box.innerHTML = '';
-    box.appendChild(pre);
+    pre.textContent = new TextDecoder().decode(pt);  // textContent: newlines intact
+    body.innerHTML = '';
+    body.appendChild(pre);
   } catch (e) {
-    document.getElementById('body').innerHTML =
-      '<p class="err">Wrong password or corrupted content.</p>';
+    body.innerHTML = '<p class="err">Wrong password or corrupted content.</p>';
   }
 };
 </script>
