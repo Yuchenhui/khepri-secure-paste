@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,11 +24,11 @@
 </head>
 <body>
 <main>
-  <h1>khepri · 加密粘贴</h1>
-  <textarea id="t" placeholder="粘贴文本、命令或脚本…换行会完整保留"></textarea>
-  <button id="go">加密并生成链接</button>
+  <h1>khepri &middot; encrypted paste</h1>
+  <textarea id="t" placeholder="Paste text, a command or a script. Newlines are preserved exactly."></textarea>
+  <button id="go">Encrypt &amp; create link</button>
   <div id="out"></div>
-  <p class="hint">内容在浏览器内加密，服务端只存密文。链接阅后即焚。</p>
+  <p class="hint">Content is encrypted in your browser. The server stores ciphertext only. Each link works once.</p>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -45,7 +45,7 @@ $('go').onclick = async () => {
   const text = $('t').value;
   if (!text) return;
   const pw = sessionStorage.getItem('khepri_pw');
-  const password = pw || prompt('设置读取密码：');
+  const password = pw || prompt('Set a password to read this paste:');
   if (!password) return;
   sessionStorage.setItem('khepri_pw', password);
 
