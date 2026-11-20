@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # Deploy the paste service to a host running nginx + Docker.
 #
-# Idempotent: safe to re-run. It builds the image, recreates both
-# containers, installs the nginx vhosts, and reloads nginx only after
-# nginx -t passes.
+# Builds the image, recreates both containers, and installs a single nginx
+# vhost. Recreating the containers clears all in-memory pastes and short links.
 #
-# Usage:  sudo ./deploy.sh [--domain paste.example.com] [--short s.example.com]
+# Usage: sudo ./deploy.sh [--domain paste.example.com]
 
 set -Eeuo pipefail
 
 DOMAIN="paste.vantolab.com"
-SHORT_DOMAIN="s.paste.vantolab.com"
 IMAGE="paste:latest"
 CORE_PORT=18901
 SHORT_PORT=18902
@@ -19,18 +17,17 @@ APP_DIR=/opt/paste
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --domain) DOMAIN="$2"; shift 2 ;;
-    --short)  SHORT_DOMAIN="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 
 [[ $(id -u) -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 
-echo "==> deploying to $DOMAIN / $SHORT_DOMAIN"
+echo "==> deploying to $DOMAIN (short links at /s/)"
 
 # ---- 1. code -------------------------------------------------------------
 mkdir -p "$APP_DIR"
-cp core.js shortener.js "$APP_DIR"/
+cp core.js shortener.js http-util.js "$APP_DIR"/
 cp -r public "$APP_DIR"/
 chown -R root:root "$APP_DIR"
 chmod -R go-w "$APP_DIR"
@@ -58,22 +55,19 @@ echo "==> starting core on 127.0.0.1:$CORE_PORT"
 run_svc paste-core "$CORE_PORT" core.js \
   -e TRUST_PROXY=1 \
   -e TTL_HOURS=24 \
-  -e "SHORTENER_URL=https://$SHORT_DOMAIN"
+  -e "SHORTENER_URL=https://$DOMAIN/s"
 
 echo "==> starting shortener on 127.0.0.1:$SHORT_PORT"
 run_svc paste-short "$SHORT_PORT" shortener.js \
   -e TRUST_PROXY=1 \
-  -e "PUBLIC_URL=https://$SHORT_DOMAIN" \
+  -e "PUBLIC_URL=https://$DOMAIN/s" \
   -e "ALLOWED_ORIGIN=https://$DOMAIN" \
   -e TTL_HOURS=24
 
 # ---- 4. nginx ------------------------------------------------------------
 sed -e "s/__DOMAIN__/$DOMAIN/g" \
     deploy/paste.vantolab.com.conf  > /etc/nginx/sites-available/$DOMAIN.conf
-sed -e "s/__SHORT__/$SHORT_DOMAIN/g" \
-    deploy/s.paste.vantolab.com.conf > /etc/nginx/sites-available/$SHORT_DOMAIN.conf
 ln -sfn /etc/nginx/sites-available/$DOMAIN.conf      /etc/nginx/sites-enabled/$DOMAIN.conf
-ln -sfn /etc/nginx/sites-available/$SHORT_DOMAIN.conf /etc/nginx/sites-enabled/$SHORT_DOMAIN.conf
 
 # ---- 5. verify then reload ----------------------------------------------
 if nginx -t; then
@@ -99,9 +93,7 @@ cat <<EOF
 
 deployed.
   paste:     https://$DOMAIN
-  shortener: https://$SHORT_DOMAIN
+  shortener: https://$DOMAIN/s/
 
-Certificates are NOT issued by this script. If these domains are new:
-  acme.sh --issue -d $DOMAIN --keylength ec-256 --dns dns_cf \
-          --nginx --reloadcmd "systemctl reload nginx"
+The TLS certificate for $DOMAIN must already be installed before deployment.
 EOF

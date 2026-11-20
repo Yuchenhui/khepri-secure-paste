@@ -2,7 +2,7 @@
 
 const http = require('node:http');
 const { randomInt } = require('node:crypto');
-const { HTTP_OPTIONS, clientIp, createRateLimit, send, readJson } = require('./http-util');
+const { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJson } = require('./http-util');
 
 const PORT = Number(process.env.PORT || 8080);
 const DEFAULT_LENGTH = Number(process.env.CODE_LEN || 4);
@@ -12,16 +12,8 @@ const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 const rateOk = createRateLimit(120);
 const links = new Map();
 
-function configuredOrigin(value) {
-  const url = new URL(value);
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.href !== url.origin + '/') {
-    throw new Error('Configure an HTTP(S) origin with no path, credentials, or query');
-  }
-  return url.origin;
-}
-
-const pasteOrigin = configuredOrigin(process.env.ALLOWED_ORIGIN);
-const publicOrigin = configuredOrigin(process.env.PUBLIC_URL);
+const pasteOrigin = configuredHttpBase(process.env.ALLOWED_ORIGIN);
+const publicBase = configuredHttpBase(process.env.PUBLIC_URL, true);
 
 function validLength(length) {
   return Number.isInteger(length) && length >= 3 && length <= 12;
@@ -83,7 +75,7 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     const code = newCode(length);
     if (!code) return send(res, 503, 'could not allocate a short code');
     links.set(code, { target, expires: Date.now() + TTL_MS });
-    return send(res, 200, publicOrigin + '/' + code);
+    return send(res, 200, publicBase + '/' + code);
   }
 
   if (!rateOk(ip)) return send(res, 429, 'rate limited');
