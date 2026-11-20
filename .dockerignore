@@ -1,0 +1,8 @@
+**
+!Dockerfile
+!core.js
+!shortener.js
+!http-util.js
+!public/
+!public/new.html
+!public/view.html

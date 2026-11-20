@@ -1,140 +1,109 @@
-/**
- * khepri-short — shortener.js
- *
- * The second half of the architecture: it maps a short code to the long
- * PrivateBin-style URL and redirects.
- *
- * This service necessarily holds the complete long URL, and the long URL
- * contains the cipher key in its fragment. That is the explicit trade the
- * user accepted: short links at the cost of this service being able to
- * reconstruct keys.
- *
- * What still protects the content:
- *   - the password, if the sender set one, which this service never sees
- *   - burn-after-reading
- *
- * If no password was set, this service can reconstruct the key and decrypt
- * the paste once the ciphertext is fetched. Do not use short links without a
- * password for anything you would not send in plaintext.
- *
- * CORS: the paste core calls this cross-origin from the browser, so the
- * shorten endpoint answers preflight and sends Access-Control-Allow-Origin.
- */
-
 'use strict';
 
 const http = require('node:http');
+const { randomInt } = require('node:crypto');
+const { HTTP_OPTIONS, clientIp, createRateLimit, send, readJson } = require('./http-util');
 
-const PORT = parseInt(process.env.PORT || '8080', 10);
-const CODE_LEN = parseInt(process.env.CODE_LEN || '4', 10);
-// Acceptable range for the client-chosen length. The floor is a security
-// decision, not a cosmetic one: 2 base62 chars is only 3844 combinations,
-// which is enumerable in minutes. The ceiling stops a hostile client from
-// requesting an absurd code.
-const MIN_CODE_LEN = 3;
-const MAX_CODE_LEN = 12;
-const TTL_HOURS = parseInt(process.env.TTL_HOURS || '24', 10);
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';
-
+const PORT = Number(process.env.PORT || 8080);
+const DEFAULT_LENGTH = Number(process.env.CODE_LEN || 4);
+const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
+const MAX_LINKS = 4096;
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-const MAX_URL = 8192;
-const RATE_WINDOW_MS = 60 * 1000;
-const RATE_MAX = 120;
+const rateOk = createRateLimit(120);
+const links = new Map();
 
-const map = new Map();  // code -> {url, expires}
-const rate = new Map(); // ip -> {n, resetAt}
-
-function send(res, status, body, headers = {}) {
-  res.writeHead(status, { 'Content-Length': Buffer.byteLength(body), 'Cache-Control': 'no-store', ...headers });
-  res.end(body);
-}
-
-function rateOk(ip) {
-  const now = Date.now();
-  const r = rate.get(ip);
-  if (!r || r.resetAt < now) { rate.set(ip, { n: 1, resetAt: now + RATE_WINDOW_MS }); return true; }
-  r.n++;
-  return r.n <= RATE_MAX;
-}
-
-function genCode(crypto, len) {
-  for (;;) {
-    const b = crypto.randomBytes(len);
-    let s = '';
-    for (let i = 0; i < len; i++) s += ALPHABET[b[i] % ALPHABET.length];
-    if (!map.has(s)) return s;
+function configuredOrigin(value) {
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.href !== url.origin + '/') {
+    throw new Error('Configure an HTTP(S) origin with no path, credentials, or query');
   }
+  return url.origin;
 }
 
-const server = http.createServer(async (req, res) => {
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+const pasteOrigin = configuredOrigin(process.env.ALLOWED_ORIGIN);
+const publicOrigin = configuredOrigin(process.env.PUBLIC_URL);
+
+function validLength(length) {
+  return Number.isInteger(length) && length >= 3 && length <= 12;
+}
+if (!Number.isSafeInteger(TTL_MS) || TTL_MS <= 0) throw new Error('TTL_HOURS must be positive');
+
+if (!validLength(DEFAULT_LENGTH)) throw new Error('CODE_LEN must be an integer from 3 to 12');
+
+function pasteTarget(value) {
+  if (typeof value !== 'string') return null;
+  let target;
+  try { target = new URL(value); }
+  catch { return null; }
+  if (target.origin !== pasteOrigin || target.username || target.password || target.pathname !== '/' ||
+      !/^\?[0-9a-f]{16}$/.test(target.search) || !/^#[A-Za-z0-9_-]{43}$/.test(target.hash)) return null;
+  return target.href;
+}
+
+function newCode(length) {
+  for (let attempt = 0; attempt < 16; attempt++) {
+    let code = '';
+    for (let i = 0; i < length; i++) code += ALPHABET[randomInt(ALPHABET.length)];
+    if (!links.has(code)) return code;
+  }
+  return null;
+}
+
+const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
+  let url;
+  try { url = new URL(req.url, 'http://internal'); }
+  catch { return send(res, 400, 'bad URL'); }
+  const { pathname } = url;
+  if (req.method === 'GET' && pathname === '/health') return send(res, 200, 'ok');
+
+  const ip = clientIp(req);
+  if (!ip) return send(res, 400, 'invalid client address');
+  if (pathname === '/shorten') {
+    res.setHeader('Vary', 'Origin');
+    if (req.headers.origin !== pasteOrigin) return send(res, 403, 'origin not allowed');
+    res.setHeader('Access-Control-Allow-Origin', pasteOrigin);
+    if (!rateOk(ip)) return send(res, 429, 'rate limited');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '600',
+      });
+      return res.end();
+    }
+    if (req.method !== 'POST') return send(res, 405, 'method not allowed', { Allow: 'POST, OPTIONS' });
+    if (url.search) return send(res, 400, 'query parameters not allowed');
+    const data = await readJson(req, res, 1024);
+    if (!data) return;
+    const target = pasteTarget(data.url);
+    const length = data.len === undefined ? DEFAULT_LENGTH : data.len;
+    if (!target) return send(res, 400, 'invalid paste destination');
+    if (!validLength(length)) return send(res, 400, 'len must be an integer from 3 to 12');
+    if (links.size >= MAX_LINKS) return send(res, 503, 'short link storage full');
+    const code = newCode(length);
+    if (!code) return send(res, 503, 'could not allocate a short code');
+    links.set(code, { target, expires: Date.now() + TTL_MS });
+    return send(res, 200, publicOrigin + '/' + code);
+  }
+
   if (!rateOk(ip)) return send(res, 429, 'rate limited');
-
-  const url = new URL(req.url, 'http://internal');
-
-  // CORS preflight, issued by the paste core's browser-side fetch.
-  if (req.method === 'OPTIONS') {
-    if (!ALLOWED_ORIGIN) return send(res, 403, 'origin not configured');
-    return send(res, 204, '', {
-      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Max-Age': '86400',
-    });
-  }
-
-  // Shorten: GET /shorten?url=<encoded long url>[&len=N]
-  // len is the requested code length in base62 characters. Bounded by
-  // MAX_CODE_LEN so a hostile client cannot ask for a 1 MB code.
-  if (req.method === 'GET' && url.pathname === '/shorten') {
-    const longUrl = url.searchParams.get('url');
-    if (!longUrl || longUrl.length > MAX_URL) return send(res, 400, 'bad url');
-    if (!/^https?:\/\//.test(longUrl)) return send(res, 400, 'bad scheme');
-
-    let len = CODE_LEN;
-    if (url.searchParams.has('len')) {
-      const n = Number(url.searchParams.get('len'));
-      if (!Number.isInteger(n) || n < MIN_CODE_LEN || n > MAX_CODE_LEN) {
-        return send(res, 400, 'len must be ' + MIN_CODE_LEN + '..' + MAX_CODE_LEN);
-      }
-      len = n;
-    }
-
-    const code = genCode(require('node:crypto'), len);
-    map.set(code, { url: longUrl, expires: Date.now() + TTL_HOURS * 3600 * 1000 });
-    const short = (process.env.PUBLIC_URL || '') + '/' + code;
-
-    const headers = {};
-    if (ALLOWED_ORIGIN) {
-      headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGIN;
-    }
-    return send(res, 200, short, headers);
-  }
-
-  // Resolve: GET /<code> redirects to the long URL.
-  if (req.method === 'GET' && /^\/[A-Za-z0-9]+$/.test(url.pathname)) {
-    const code = url.pathname.slice(1);
-    const entry = map.get(code);
+  if (req.method === 'GET' && /^\/[A-Za-z0-9]{3,12}$/.test(pathname)) {
+    const code = pathname.slice(1);
+    const entry = links.get(code);
     if (!entry) return send(res, 404, 'unknown code');
-    if (entry.expires < Date.now()) {
-      map.delete(code);
-      return send(res, 404, 'expired');
+    if (entry.expires <= Date.now()) {
+      links.delete(code);
+      return send(res, 404, 'unknown code');
     }
-    // One-shot: the mapping is consumed on first use, mirroring the core's
-    // burn-after-reading. A stale link cannot be replayed later.
-    map.delete(code);
-    return send(res, 302, '', { Location: entry.url });
+    // Following a redirect never consumes a paste or its short link.
+    return send(res, 302, '', { Location: entry.target });
   }
-
-  if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, 'ok');
-
-  send(res, 404, 'not found');
+  return send(res, 404, 'not found');
 });
 
 setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of map) if (v.expires < now) map.delete(k);
-}, 60 * 1000).unref();
+  for (const [code, entry] of links) if (entry.expires <= now) links.delete(code);
+}, 60000).unref();
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`khepri short listening on 127.0.0.1:${PORT}`);
-});
+server.listen(PORT, '127.0.0.1', () => console.log(`Shortener listening on 127.0.0.1:${PORT}`));

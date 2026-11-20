@@ -44,26 +44,25 @@ docker build -q -t "$IMAGE" .
 run_svc() {
   local name="$1" port="$2" script="$3"; shift 3
   docker rm -f "$name" >/dev/null 2>&1 || true
-  # shellcheck disable=SC2068
   docker run -d --name "$name" \
     --restart unless-stopped \
     --read-only --cap-drop ALL --security-opt no-new-privileges \
     --memory 256m --pids-limit 128 \
-    -p "127.0.0.1:${port}:8080" \
-    $@ \
+    --network host \
+    -e "PORT=$port" \
+    "$@" \
     "$IMAGE" node "$script" >/dev/null
 }
 
 echo "==> starting core on 127.0.0.1:$CORE_PORT"
 run_svc paste-core "$CORE_PORT" core.js \
-  -e PORT=8080 \
   -e TRUST_PROXY=1 \
   -e TTL_HOURS=24 \
   -e "SHORTENER_URL=https://$SHORT_DOMAIN"
 
 echo "==> starting shortener on 127.0.0.1:$SHORT_PORT"
 run_svc paste-short "$SHORT_PORT" shortener.js \
-  -e PORT=8080 \
+  -e TRUST_PROXY=1 \
   -e "PUBLIC_URL=https://$SHORT_DOMAIN" \
   -e "ALLOWED_ORIGIN=https://$DOMAIN" \
   -e TTL_HOURS=24
@@ -71,7 +70,7 @@ run_svc paste-short "$SHORT_PORT" shortener.js \
 # ---- 4. nginx ------------------------------------------------------------
 sed -e "s/__DOMAIN__/$DOMAIN/g" \
     deploy/paste.vantolab.com.conf  > /etc/nginx/sites-available/$DOMAIN.conf
-sed -e "s/__DOMAIN__/$DOMAIN/g" \
+sed -e "s/__SHORT__/$SHORT_DOMAIN/g" \
     deploy/s.paste.vantolab.com.conf > /etc/nginx/sites-available/$SHORT_DOMAIN.conf
 ln -sfn /etc/nginx/sites-available/$DOMAIN.conf      /etc/nginx/sites-enabled/$DOMAIN.conf
 ln -sfn /etc/nginx/sites-available/$SHORT_DOMAIN.conf /etc/nginx/sites-enabled/$SHORT_DOMAIN.conf

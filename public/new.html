@@ -1,820 +1,180 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>new paste</title>
+<title>New paste</title>
 <style>
-/* bp-lint-ignore-file R01: file-head :root / [data-theme] blocks are the
-   brand-pages build-registry token definitions (scales, shadows, semantic
-   roles), not colour usages. The linter cannot tell the two apart. Every
-   actual use of colour in this page's own styles goes through var(--color-...). */
-/* 主题切换：<html data-theme="dark">；也可以加在局部容器上（如始终深色的首屏），子树里的角色与组件 token 会一起切换；不写 data-theme 时跟随系统。 */
-:root {
-  color-scheme: light;
-  /* bp-lint-ignore R01: 以下是色阶与主题 token 的定义处, 不是使用处。
-     lint 无法区分「定义色阶」与「硬编码用色」, 故整块声明忽略。
-     页面样式中所有用色均走 var(--color-…) 引用这些 token。 */
-  /* ---- 色阶 ---- */
-  --primary-50: #fbf4ec;
-  --primary-100: #f6e6d4;
-  --primary-200: #eccaa8;
-  --primary-300: #dfa876;
-  --primary-400: #d18a4e;
-  --primary-500: #a85f27;
-  --primary-600: #8e4d1e;
-  --primary-700: #834a22;
-  --primary-800: #63391d;
-  --primary-900: #472a18;
-  --primary-950: #2a1a0f;
-  --neutral-0: #ffffff;
-  --neutral-25: #f7f3ec;
-  --neutral-50: #f0e9df;
-  --neutral-100: #ded4c4;
-  --neutral-200: #c4b8a4;
-  --neutral-300: #bdb1a0;
-  --neutral-400: #a99c88;
-  --neutral-450: #9a8d78;
-  --neutral-500: #8b7f6b;
-  --neutral-550: #7a6f5d;
-  --neutral-600: #6e6353;
-  --neutral-700: #3a332a;
-  --neutral-800: #272219;
-  --neutral-850: #1e1a15;
-  --neutral-900: #17140f;
-  --neutral-925: #12100d;
-  --neutral-950: #0c0a08;
-  --success-50: #eef7ee;
-  --success-100: #d6ecd7;
-  --success-200: #aed9b1;
-  --success-300: #7fbd85;
-  --success-400: #57a05f;
-  --success-500: #3a8544;
-  --success-600: #2a6c34;
-  --success-700: #21562b;
-  --success-800: #174021;
-  --success-900: #0f2c17;
-  --success-950: #08190d;
-  --warning-50: #fdf5e8;
-  --warning-100: #f9e7c6;
-  --warning-200: #f2cd93;
-  --warning-300: #e5ad5c;
-  --warning-400: #d3903a;
-  --warning-500: #b8762a;
-  --warning-600: #975c22;
-  --warning-700: #78491d;
-  --warning-800: #5a3717;
-  --warning-900: #3f2712;
-  --warning-950: #24160a;
-  --danger-50: #fdf2ef;
-  --danger-100: #fadfd8;
-  --danger-200: #f4bdb1;
-  --danger-300: #e99486;
-  --danger-400: #d96e5e;
-  --danger-500: #c25343;
-  --danger-600: #a33f31;
-  --danger-700: #823227;
-  --danger-800: #63271e;
-  --danger-900: #451c16;
-  --danger-950: #2a100c;
-  --info-50: #eef4f6;
-  --info-100: #d8e6ea;
-  --info-200: #b0ccd4;
-  --info-300: #82aeb9;
-  --info-400: #5c909f;
-  --info-500: #457786;
-  --info-600: #36616d;
-  --info-700: #2c4d56;
-  --info-800: #213a41;
-  --info-900: #17282d;
-  --info-950: #0e181b;
-  /* ---- 主题角色（浅色） ---- */
-  --color-bg: var(--neutral-950);
-  --color-bg-subtle: var(--neutral-925);
-  --color-surface: var(--neutral-900);
-  --color-surface-raised: var(--neutral-850);
-  --color-surface-sunken: #080706;
-  --color-text: var(--neutral-50);
-  --color-text-muted: var(--neutral-300);
-  --color-text-subtle: var(--neutral-400);
-  --color-placeholder: var(--neutral-300);
-  --color-border: var(--neutral-700);
-  --color-border-strong: var(--neutral-600);
-  --color-primary: var(--primary-400);
-  --color-primary-hover: var(--primary-300);
-  --color-primary-active: var(--primary-200);
-  --color-on-primary: var(--primary-950);
-  --color-primary-text: var(--primary-300);
-  --color-primary-subtle: color-mix(in srgb, var(--primary-400) 13%, transparent);
-  --color-focus-ring: var(--primary-400);
-  --color-accent: var(--primary-300);
-  --color-accent-text: var(--primary-300);
-  --color-success: var(--success-400);
-  --color-success-text: var(--success-300);
-  --color-success-subtle: color-mix(in srgb, var(--success-400) 13%, transparent);
-  --color-warning: var(--warning-300);
-  --color-warning-text: var(--warning-200);
-  --color-warning-subtle: color-mix(in srgb, var(--warning-400) 13%, transparent);
-  --color-danger: var(--danger-400);
-  --color-danger-hover: var(--danger-300);
-  --color-danger-active: var(--danger-200);
-  --color-on-danger: var(--danger-950);
-  --color-danger-text: var(--danger-300);
-  --color-danger-subtle: color-mix(in srgb, var(--danger-400) 13%, transparent);
-  --color-info: var(--info-400);
-  --color-info-text: var(--info-300);
-  --color-info-subtle: color-mix(in srgb, var(--info-400) 13%, transparent);
-  --color-disabled-bg: var(--neutral-850);
-  --color-disabled-text: var(--neutral-500);
-  --color-overlay: rgb(0 0 0 / 0.62);
-  --color-inverse-bg: #070605;
-  --color-inverse-text: var(--neutral-50);
-  --color-inverse-text-muted: var(--neutral-400);
-  --color-inverse-border: rgb(255 255 255 / 0.08);
-  --color-hero-bg: var(--neutral-950);
-  --color-hero-text: #ffffff;
-  --color-hero-text-muted: rgb(255 255 255 / 0.8);
-  /* ---- 字体与字号 ---- */
-  --font-display: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --font-body: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --text-body: 16px;
-  --text-body--line-height: 1.6;
-  --text-body--font-weight: 400;
-  --text-body--letter-spacing: 0;
-  --text-body--font-family: var(--font-body);
-  --text-body-lg: 18px;
-  --text-body-lg--line-height: 1.65;
-  --text-body-lg--font-weight: 400;
-  --text-body-lg--letter-spacing: 0;
-  --text-body-lg--font-family: var(--font-body);
-  --text-display-lg: clamp(34px, 4.6vw, 64px);
-  --text-display-lg--line-height: 1.1;
-  --text-display-lg--font-weight: 600;
-  --text-display-lg--letter-spacing: 0;
-  --text-display-lg--font-family: var(--font-display);
-  --text-display-md: clamp(28px, 3.2vw, 44px);
-  --text-display-md--line-height: 1.16;
-  --text-display-md--font-weight: 600;
-  --text-display-md--letter-spacing: 0;
-  --text-display-md--font-family: var(--font-display);
-  --text-display-xl: clamp(40px, 6.4vw, 88px);
-  --text-display-xl--line-height: 1.06;
-  --text-display-xl--font-weight: 600;
-  --text-display-xl--letter-spacing: 0;
-  --text-display-xl--font-family: var(--font-display);
-  --text-mono-body: 14px;
-  --text-mono-body--line-height: 1.6;
-  --text-mono-body--font-weight: 400;
-  --text-mono-body--letter-spacing: 0;
-  --text-mono-body--font-family: var(--font-mono);
-  --text-mono-sm: 13px;
-  --text-mono-sm--line-height: 1.6;
-  --text-mono-sm--font-weight: 400;
-  --text-mono-sm--letter-spacing: 0;
-  --text-mono-sm--font-family: var(--font-mono);
-  --text-mono-display: clamp(28px, 7vw, 40px);
-  --text-mono-display--line-height: 1.1;
-  --text-mono-display--font-weight: 500;
-  --text-mono-display--letter-spacing: 0.08em;
-  --text-mono-display--font-family: var(--font-mono);  --text-sm: 14px;
-  --text-sm--line-height: 1.55;
-  --text-sm--font-weight: 400;
-  --text-sm--letter-spacing: 0;
-  --text-sm--font-family: var(--font-body);
-  --text-title-lg: 22px;
-  --text-title-lg--line-height: 1.3;
-  --text-title-lg--font-weight: 600;
-  --text-title-lg--letter-spacing: -0.01em;
-  --text-title-lg--font-family: var(--font-body);
-  --text-title-md: 22px;
-  --text-title-md--line-height: 1.3;
-  --text-title-md--font-weight: 600;
-  --text-title-md--letter-spacing: -0.01em;
-  --text-title-md--font-family: var(--font-body);
-  --text-title-sm: 18px;
-  --text-title-sm--line-height: 1.4;
-  --text-title-sm--font-weight: 600;
-  --text-title-sm--letter-spacing: 0;
-  --text-title-sm--font-family: var(--font-body);
-  --text-xs: 12px;
-  --text-xs--line-height: 1.45;
-  --text-xs--font-weight: 500;
-  --text-xs--letter-spacing: 0.01em;
-  --text-xs--font-family: var(--font-body);
-  /* ---- 间距与布局 ---- */
-  --space-0: 0px;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
-  --space-20: 80px;
-  --space-24: 96px;
-  --container-max: 960px;
-  --gutter: clamp(16px, 4vw, 32px);
-  --section-y: clamp(24px, 5vw, 48px);
-  /* ---- 圆角 ---- */
-  --radius-none: 0px;
-  --radius-xs: 3px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-full: 9999px;
-  /* ---- 阴影 / 层级（浅色） ---- */
-  --shadow-1: 0 0 0 0.5px rgb(23 20 15 / 0.08), 0 1px 2px rgb(23 20 15 / 0.06);
-  --elev-surface-1: var(--color-surface-raised);
-  --shadow-2: 0 0 0 0.5px rgb(23 20 15 / 0.08), 0 4px 8px -2px rgb(23 20 15 / 0.08);
-  --elev-surface-2: var(--color-surface-raised);
-  --shadow-3: 0 0 0 0.5px rgb(23 20 15 / 0.08), 0 8px 16px -4px rgb(23 20 15 / 0.10);
-  --elev-surface-3: var(--color-surface-raised);
-  --shadow-4: 0 0 0 0.5px rgb(23 20 15 / 0.08), 0 16px 32px -8px rgb(23 20 15 / 0.14);
-  --elev-surface-4: var(--color-surface-raised);
-  /* ---- 动效 ---- */
-  --duration-instant: 120ms;
-  --duration-fast: 200ms;
-  --duration-base: 320ms;
-  --duration-slow: 400ms;
-  --ease-out: cubic-bezier(.2,.8,.2,1);
-  --ease-in: cubic-bezier(.4,0,1,1);
-  --ease-in-out: cubic-bezier(.65,0,.35,1);
-  --entrance-duration: 400ms;
-  --stagger: 50ms;
-  --stagger-max: 6;
-  --rise: 8px;
-  --press-scale: 0.98;
-  --spinner-duration: 800ms;
-  --ambient-duration: 14000ms;
-  /* ---- 渐变 ---- */
-
-}
-:root, [data-theme] {
-  /* bp-lint-ignore R01: 组件 token 的阴影/边框定义处, 同上。 */
-  /* ---- 组件 Token（引用主题角色，随主题自动切换） ---- */
-  --btn-weight: 500;
-  --btn-h-md: 40px;
-  --btn-px-md: 16px;
-  --btn-fs-md: var(--text-sm);
-  --btn-radius-md: var(--radius-md);
-  --btn-gap-md: 8px;
-  --btn-h-sm: 32px;
-  --btn-px-sm: 12px;
-  --btn-fs-sm: var(--text-xs);
-  --btn-radius-sm: var(--radius-sm);
-  --btn-gap-sm: 6px;
-  --btn-h-lg: 48px;
-  --btn-px-lg: 24px;
-  --btn-fs-lg: var(--text-body);
-  --btn-radius-lg: var(--radius-md);
-  --btn-gap-lg: 8px;
-  --btn-primary-bg: var(--color-primary);
-  --btn-primary-fg: var(--color-on-primary);
-  --btn-primary-border: transparent;
-  --btn-primary-bg-hover: var(--color-primary-hover);
-  --btn-primary-bg-active: var(--color-primary-active);
-  --btn-ghost-bg: transparent;
-  --btn-ghost-fg: var(--color-text-muted);
-  --btn-ghost-border: var(--color-border);
-  --btn-ghost-bg-hover: var(--color-surface-raised);
-  --btn-ghost-bg-active: var(--color-surface-sunken);
-  --btn-secondary-bg: var(--color-surface);
-  --btn-secondary-fg: var(--color-text);
-  --btn-secondary-border: var(--color-border-strong);
-  --btn-secondary-bg-hover: var(--color-bg-subtle);
-  --btn-secondary-bg-active: var(--color-surface-sunken);
-  --btn-danger-bg: var(--color-danger);
-  --btn-danger-fg: var(--color-on-danger);
-  --btn-danger-border: transparent;
-  --btn-danger-bg-hover: var(--color-danger-hover);
-  --btn-danger-bg-active: var(--color-danger-active);
-  --btn-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-focus-ring);
-  --btn-disabled-bg: var(--color-disabled-bg);
-  --btn-disabled-fg: var(--color-disabled-text);
-  --btn-duration: var(--duration-fast);
-  --btn-ease: var(--ease-out);
-  --btn-press-scale: 0.98;
-  --spinner-size: 14px;
-  --spinner-stroke: 2px;
-  --input-h: 44px;
-  --input-px: 14px;
-  --input-radius: var(--radius-md);
-  --input-fs: var(--text-sm);
-  --input-bg: var(--color-surface-sunken);
-  --input-fg: var(--color-text);
-  --input-placeholder: var(--color-placeholder);
-  --input-border: var(--color-border-strong);
-  --input-border-hover: var(--color-border-strong);
-  --input-border-focus: var(--color-focus-ring);
-  --input-ring-focus: 0 0 0 3px color-mix(in srgb, var(--color-focus-ring) 24%, transparent);
-  --input-border-error: var(--color-danger);
-  --input-ring-error: 0 0 0 3px color-mix(in srgb, var(--color-danger) 20%, transparent);
-  --input-error-fg: var(--color-danger-text);
-  --input-disabled-bg: var(--color-disabled-bg);
-  --input-disabled-fg: var(--color-disabled-text);
-  --input-disabled-border: var(--color-border);
-  --label-fs: var(--text-sm);
-  --label-weight: 500;
-  --label-fg: var(--color-text);
-  --help-fg: var(--color-text-muted);
-  --card-bg: var(--color-surface);
-  --card-border: var(--color-border);
-  --card-radius: var(--radius-lg);
-  --card-p: 20px;
-  --card-shadow: var(--shadow-1);
-  --card-shadow-hover: var(--shadow-2);
-  --card-lift: -2px;
-  --nav-h: 64px;
-  --nav-bg: color-mix(in srgb, var(--color-bg) 82%, transparent);
-  --nav-bg-scrolled: color-mix(in srgb, var(--color-surface) 90%, transparent);
-  --nav-blur: 12px;
-  --nav-border: var(--color-border);
-  --nav-link: var(--color-text-muted);
-  --nav-link-active: var(--color-text);
-  --footer-bg: var(--color-inverse-bg);
-  --footer-fg: var(--color-inverse-text);
-  --footer-fg-muted: var(--color-inverse-text-muted);
-  --footer-border: var(--color-inverse-border);
-  --cta-bg: var(--color-hero-bg);
-  --cta-fg: var(--color-hero-text);
-  --cta-fg-muted: var(--color-hero-text-muted);
-  --cta-radius: var(--radius-lg);
-  --cta-p: 48px;
-  --hero-bg: var(--color-hero-bg);
-  --hero-fg: var(--color-hero-text);
-  --hero-fg-muted: var(--color-hero-text-muted);
-  --hero-title-size: var(--text-title-lg);
-  --hero-layer-1: var(--neutral-800);
-  --hero-layer-2: var(--neutral-900);
-  --hero-layer-3: var(--neutral-950);
-  --badge-h: 24px;
-  --badge-px: 8px;
-  --badge-radius: var(--radius-full);
-  --badge-fs: var(--text-xs);
-  --badge-neutral-bg: var(--color-bg-subtle);
-  --badge-neutral-fg: var(--color-text-muted);
-  --badge-primary-bg: var(--color-primary-subtle);
-  --badge-primary-fg: var(--color-primary-text);
-  --badge-success-bg: var(--color-success-subtle);
-  --badge-success-fg: var(--color-success-text);
-  --badge-warning-bg: var(--color-warning-subtle);
-  --badge-warning-fg: var(--color-warning-text);
-  --badge-danger-bg: var(--color-danger-subtle);
-  --badge-danger-fg: var(--color-danger-text);
-  --badge-info-bg: var(--color-info-subtle);
-  --badge-info-fg: var(--color-info-text);
-  --toast-bg: var(--color-surface-raised);
-  --toast-fg: var(--color-text);
-  --toast-fg-muted: var(--color-text-muted);
-  --toast-radius: var(--radius-md);
-  --toast-p: 12px;
-  --toast-shadow: var(--shadow-2);
-  --toast-success: var(--color-success);
-  --toast-warning: var(--color-warning);
-  --toast-danger: var(--color-danger);
-}
-[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg: var(--neutral-950);
-  --color-bg-subtle: var(--neutral-925);
-  --color-surface: var(--neutral-900);
-  --color-surface-raised: var(--neutral-850);
-  --color-surface-sunken: #080706;
-  --color-text: var(--neutral-50);
-  --color-text-muted: var(--neutral-300);
-  --color-text-subtle: var(--neutral-400);
-  --color-placeholder: var(--neutral-300);
-  --color-border: var(--neutral-700);
-  --color-border-strong: var(--neutral-600);
-  --color-primary: var(--primary-400);
-  --color-primary-hover: var(--primary-300);
-  --color-primary-active: var(--primary-200);
-  --color-on-primary: var(--primary-950);
-  --color-primary-text: var(--primary-300);
-  --color-primary-subtle: color-mix(in srgb, var(--primary-400) 13%, transparent);
-  --color-focus-ring: var(--primary-400);
-  --color-accent: var(--primary-300);
-  --color-accent-text: var(--primary-300);
-  --color-success: var(--success-400);
-  --color-success-text: var(--success-300);
-  --color-success-subtle: color-mix(in srgb, var(--success-400) 13%, transparent);
-  --color-warning: var(--warning-300);
-  --color-warning-text: var(--warning-200);
-  --color-warning-subtle: color-mix(in srgb, var(--warning-400) 13%, transparent);
-  --color-danger: var(--danger-400);
-  --color-danger-hover: var(--danger-300);
-  --color-danger-active: var(--danger-200);
-  --color-on-danger: var(--danger-950);
-  --color-danger-text: var(--danger-300);
-  --color-danger-subtle: color-mix(in srgb, var(--danger-400) 13%, transparent);
-  --color-info: var(--info-400);
-  --color-info-text: var(--info-300);
-  --color-info-subtle: color-mix(in srgb, var(--info-400) 13%, transparent);
-  --color-disabled-bg: var(--neutral-850);
-  --color-disabled-text: var(--neutral-500);
-  --color-overlay: rgb(0 0 0 / 0.62);
-  --color-inverse-bg: #070605;
-  --color-inverse-text: var(--neutral-50);
-  --color-inverse-text-muted: var(--neutral-400);
-  --color-inverse-border: rgb(255 255 255 / 0.08);
-  --color-hero-bg: var(--neutral-950);
-  --color-hero-text: #ffffff;
-  --color-hero-text-muted: rgb(255 255 255 / 0.8);
-  --shadow-1: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 0.5px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
-  --elev-surface-1: var(--neutral-900);
-  --shadow-2: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.5);
-  --elev-surface-2: var(--neutral-850);
-  --shadow-3: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px rgb(255 255 255 / 0.09), 0 20px 40px -16px rgb(0 0 0 / 0.6);
-  --elev-surface-3: var(--neutral-800);
-  --shadow-4: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 32px 64px -24px rgb(0 0 0 / 0.7);
-  --elev-surface-4: var(--neutral-700);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-    --color-bg: var(--neutral-950);
-    --color-bg-subtle: var(--neutral-925);
-    --color-surface: var(--neutral-900);
-    --color-surface-raised: var(--neutral-850);
-    --color-surface-sunken: #080706;
-    --color-text: var(--neutral-50);
-    --color-text-muted: var(--neutral-300);
-    --color-text-subtle: var(--neutral-400);
-    --color-placeholder: var(--neutral-300);
-    --color-border: var(--neutral-700);
-    --color-border-strong: var(--neutral-600);
-    --color-primary: var(--primary-400);
-    --color-primary-hover: var(--primary-300);
-    --color-primary-active: var(--primary-200);
-    --color-on-primary: var(--primary-950);
-    --color-primary-text: var(--primary-300);
-    --color-primary-subtle: color-mix(in srgb, var(--primary-400) 13%, transparent);
-    --color-focus-ring: var(--primary-400);
-    --color-accent: var(--primary-300);
-    --color-accent-text: var(--primary-300);
-    --color-success: var(--success-400);
-    --color-success-text: var(--success-300);
-    --color-success-subtle: color-mix(in srgb, var(--success-400) 13%, transparent);
-    --color-warning: var(--warning-300);
-    --color-warning-text: var(--warning-200);
-    --color-warning-subtle: color-mix(in srgb, var(--warning-400) 13%, transparent);
-    --color-danger: var(--danger-400);
-    --color-danger-hover: var(--danger-300);
-    --color-danger-active: var(--danger-200);
-    --color-on-danger: var(--danger-950);
-    --color-danger-text: var(--danger-300);
-    --color-danger-subtle: color-mix(in srgb, var(--danger-400) 13%, transparent);
-    --color-info: var(--info-400);
-    --color-info-text: var(--info-300);
-    --color-info-subtle: color-mix(in srgb, var(--info-400) 13%, transparent);
-    --color-disabled-bg: var(--neutral-850);
-    --color-disabled-text: var(--neutral-500);
-    --color-overlay: rgb(0 0 0 / 0.62);
-    --color-inverse-bg: #070605;
-    --color-inverse-text: var(--neutral-50);
-    --color-inverse-text-muted: var(--neutral-400);
-    --color-inverse-border: rgb(255 255 255 / 0.08);
-    --color-hero-bg: var(--neutral-950);
-    --color-hero-text: #ffffff;
-    --color-hero-text-muted: rgb(255 255 255 / 0.8);
-    --shadow-1: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 0.5px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
-    --elev-surface-1: var(--neutral-900);
-    --shadow-2: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.5);
-    --elev-surface-2: var(--neutral-850);
-    --shadow-3: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px rgb(255 255 255 / 0.09), 0 20px 40px -16px rgb(0 0 0 / 0.6);
-    --elev-surface-3: var(--neutral-800);
-    --shadow-4: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 32px 64px -24px rgb(0 0 0 / 0.7);
-    --elev-surface-4: var(--neutral-700);
+  :root {
+    color-scheme: light;
+    --canvas: #f2f3f0;
+    --paper: #fff;
+    --ink: #182435;
+    --muted: #546477;
+    --line: #d8dfe5;
+    --control: #8593a3;
+    --accent: #214fb8;
+    --accent-hover: #183e97;
+    --tint: #eff4ff;
+    --editor: #18263b;
+    --editor-edge: #354962;
+    --editor-text: #f2f6fc;
+    --editor-muted: #aabbd0;
+    --danger: #9c3032;
+    --warning: #79501a;
+    --mono: ui-monospace, Consolas, monospace;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  :root { --duration-instant: 0.01ms; --duration-fast: 0.01ms; --duration-base: 0.01ms; --duration-slow: 0.01ms; --entrance-duration: 0.01ms; --stagger: 0ms; --rise: 0px; --press-scale: 1; --btn-press-scale: 1; --card-lift: 0px; }
-}
-html[data-motion="off"] { --duration-instant: 0.01ms; --duration-fast: 0.01ms; --duration-base: 0.01ms; --duration-slow: 0.01ms; --entrance-duration: 0.01ms; --stagger: 0ms; --rise: 0px; --press-scale: 1; --btn-press-scale: 1; --card-lift: 0px; }
-
-/* 组件基础样式：只用 tokens.css 中的变量。类名前缀 bp-。演示用的 .is-hover / .is-focus / .is-active 强制状态类与真实伪类等价。 */
-.bp-btn {
-  --_bg: var(--btn-primary-bg); --_fg: var(--btn-primary-fg); --_bd: var(--btn-primary-border); --_bg-h: var(--btn-primary-bg-hover); --_bg-a: var(--btn-primary-bg-active);
-  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--btn-gap-md);
-  height: var(--btn-h-md); padding: 0 var(--btn-px-md); border: 1px solid var(--_bd); border-radius: var(--btn-radius-md);
-  background-color: var(--_bg); color: var(--_fg); font-family: var(--font-body); font-size: var(--btn-fs-md); font-weight: var(--btn-weight); line-height: 1;
-  white-space: nowrap; text-decoration: none; cursor: pointer; overflow: hidden; isolation: isolate; -webkit-tap-highlight-color: transparent; user-select: none;
-  transition: background-color var(--btn-duration) var(--btn-ease), border-color var(--btn-duration) var(--btn-ease), color var(--btn-duration) var(--btn-ease), transform var(--duration-instant) var(--btn-ease);
-}
-
-.bp-btn--ghost { --_bg: var(--btn-ghost-bg); --_fg: var(--btn-ghost-fg); --_bd: var(--btn-ghost-border); --_bg-h: var(--btn-ghost-bg-hover); --_bg-a: var(--btn-ghost-bg-active); }
-
-.bp-btn--sm { height: var(--btn-h-sm); padding: 0 var(--btn-px-sm); font-size: var(--btn-fs-sm); border-radius: var(--btn-radius-sm); gap: var(--btn-gap-sm); }
-
-.bp-btn--block { display: flex; width: 100%; }
-
-.bp-btn:where(:active, .is-active):not(:disabled, [aria-disabled="true"], [aria-busy="true"]) { background-color: var(--_bg-a); transform: scale(var(--btn-press-scale)); }
-
-.bp-btn:disabled, .bp-btn[aria-disabled="true"] { background-color: var(--btn-disabled-bg); color: var(--btn-disabled-fg); border-color: transparent; cursor: not-allowed; }
-
-.bp-spinner { width: var(--spinner-size); height: var(--spinner-size); flex: none; border: var(--spinner-stroke) solid currentColor; border-right-color: transparent; border-radius: var(--radius-full); animation: bp-spin var(--spinner-duration) linear infinite; }
-
-.bp-field { display: grid; gap: var(--space-2); align-content: start; }
-
-.bp-input {
-  width: 100%; height: var(--input-h); padding: 0 var(--input-px); border: 1px solid var(--input-border); border-radius: var(--input-radius);
-  background-color: var(--input-bg); color: var(--input-fg); font-family: var(--font-body); font-size: var(--input-fs); line-height: var(--text-body--line-height);
-  transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-.bp-input:where(:hover, .is-hover):not(:disabled, :focus-visible, [aria-invalid="true"]) { border-color: var(--input-border-hover); }
-
-.bp-input[aria-invalid="true"] { border-color: var(--input-border-error); }
-
-.bp-input:disabled { background-color: var(--input-disabled-bg); color: var(--input-disabled-fg); border-color: var(--input-disabled-border); cursor: not-allowed; }
-
-.bp-error { display: flex; gap: var(--space-1); align-items: flex-start; font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--input-error-fg); }
-
-.bp-check input { width: 16px; height: 16px; accent-color: var(--color-primary); }
-
-.bp-card { position: relative; background-color: var(--card-bg); color: var(--color-text); border: 1px solid var(--card-border); border-radius: var(--card-radius); padding: var(--card-p); box-shadow: var(--card-shadow); }
-
-.bp-card--link::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; box-shadow: var(--card-shadow-hover); opacity: 0; pointer-events: none; transition: opacity var(--duration-base) var(--ease-out); }
-
-.bp-card--link:where(:hover, .is-hover)::after { opacity: 1; }
-
-.bp-nav a:not(.bp-btn) { color: var(--nav-link); text-decoration: none; font-size: var(--text-sm); transition: color var(--duration-fast) var(--ease-out); }
-
-@keyframes bp-spin { to { transform: rotate(1turn); } }
-/* 只包含注册表 effects.allow 中的效果；白名单之外的 data-effect 不会有样式，lint 也会报 R09。
-   .bp-fx-ready 由 effects-runtime.js 在 <html> 上添加：没有 JS 时所有内容直接以终态显示。 */
-/* 点击涟漪 click-ripple：按下位置扩散一次（transform + opacity），runtime 插入 .bp-ripple */
-@keyframes bp-ripple { from { transform: translate(-50%, -50%) scale(0); opacity: .32; } to { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
-.bp-ripple { position: absolute; left: var(--rx); top: var(--ry); width: var(--rs); height: var(--rs); border-radius: var(--radius-full); background-color: currentColor; pointer-events: none; z-index: -1; animation: bp-ripple var(--duration-base) var(--ease-out) forwards; }
-
-/* 错峰入场 stagger-in：直接子元素依次上浮淡入，最多 var(--stagger-max) 个错峰。用法：父元素 data-effect="stagger-in" */
-@keyframes bp-rise { from { opacity: 0; transform: translateY(var(--rise)); } }
-.bp-fx-ready [data-effect~="stagger-in"] > * { animation: bp-rise var(--duration-slow) var(--ease-out) both; animation-delay: calc(min(var(--i, 0), var(--stagger-max) - 1) * var(--stagger)); }
-.bp-fx-ready [data-effect~="stagger-in"][data-trigger="in-view"]:not(.is-in) > * { animation-play-state: paused; }
-
-/* 骨架屏 skeleton：加载占位，透明度呼吸属加载指示，允许循环 */
-@keyframes bp-skeleton { 50% { opacity: .55; } }
-.bp-skeleton { border-radius: var(--radius-sm); background-color: var(--color-bg-subtle); animation: bp-skeleton 1600ms var(--ease-in-out) infinite; }
-
-/* ---- 减弱动效：所有效果直接终态 ---- */
-@media (prefers-reduced-motion: reduce) {
-  [data-effect], [data-effect] > *, [data-effect]::before, [data-effect]::after, .bp-dotgrid__glow, .bp-ripple { animation: none !important; transition-duration: 0.01ms !important; transition-delay: 0ms !important; }
-  .bp-fx-ready [data-effect]:not(.is-in), .bp-fx-ready [data-effect] > * { opacity: 1; transform: none; filter: none; }
-  .bp-ripple { display: none; }
-}
-html[data-motion="off"] [data-effect], html[data-motion="off"] [data-effect] > *, html[data-motion="off"] [data-effect]::before, html[data-motion="off"] [data-effect]::after, html[data-motion="off"] .bp-dotgrid__glow { animation: none !important; transition-duration: 0.01ms !important; }
-
-
-  /* ---- 页面骨架 ---- */
+  html { overflow-y: scroll; }
+  @supports (scrollbar-gutter: stable) {
+    html { overflow-y: auto; scrollbar-gutter: stable; }
+  }
   *, *::before, *::after { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    padding: var(--space-12) var(--layout-gutter);
-    background-color: var(--color-bg);
-    color: var(--color-text);
-    font-family: var(--font-body);
-    font-size: var(--text-sm);
-    line-height: var(--text-sm--line-height);
-    display: flex;
-    justify-content: center;
-    -webkit-font-smoothing: antialiased;
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, sans-serif; }
+  main { width: min(calc(100% - 48px), 56rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
+  .masthead { margin-bottom: 28px; }
+  h1 { margin: 0; font-size: clamp(2.25rem, 5vw, 3.25rem); font-weight: 650; letter-spacing: -.04em; line-height: 1.08; }
+  .masthead p { max-width: 48ch; margin: 10px 0 0; color: var(--muted); }
+  .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px -24px #18243566; }
+  button, input, select, textarea { font: inherit; }
+  :where(button, input, select, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  a { color: var(--accent); text-underline-offset: .18em; }
+  .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--accent); color: var(--paper); font-size: .875rem; font-weight: 650; text-decoration: none; white-space: nowrap; cursor: pointer; }
+  .button:hover:not(:disabled) { background: var(--accent-hover); }
+  .button.secondary { border-color: var(--control); background: var(--paper); color: var(--ink); }
+  .button.secondary:hover:not(:disabled) { background: var(--tint); }
+  .button:disabled { opacity: .75; cursor: wait; }
+  .bp-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn); } }
+  .field { display: grid; gap: 6px; min-width: 0; }
+  .field > label { font-size: .875rem; font-weight: 650; }
+  .optional { color: var(--muted); font-weight: 400; }
+  .input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--control); border-radius: 8px; background: var(--paper); color: var(--ink); }
+  ::placeholder { color: var(--muted); opacity: 1; }
+  .note { margin: 0; font-size: .875rem; color: var(--muted); }
+  .note--warn { color: var(--warning); }
+  .err { margin: 0; color: var(--danger); }
+  @media (max-width: 40rem) {
+    main { width: calc(100% - 32px); margin-top: 32px; }
+    .masthead { margin-bottom: 22px; }
   }
+  @media (prefers-reduced-motion: reduce) { .bp-spinner { animation: none; } }
 
-  main { width: 100%; max-width: 40rem; }
-
-  /* ---- 页头 ---- */
-  .masthead { margin-bottom: var(--space-12); }
-  .masthead h1 {
-    margin: 0;
-    font-size: var(--text-title-lg);
-    line-height: var(--text-title-lg--line-height);
-    font-weight: var(--text-title-lg--font-weight);
-    letter-spacing: var(--text-title-lg--letter-spacing);
+  .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, .52fr); align-items: stretch; }
+  .editor { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 16px 20px 20px; border-radius: 15px 0 0 15px; background: var(--editor); color: var(--editor-text); }
+  .editor > label { width: fit-content; padding: 0 0 12px; font-size: .875rem; font-weight: 650; }
+  .editor-source { display: grid; grid-template-columns: calc(20px + var(--line-digits, 1) * 1ch) minmax(0, 1fr); border: 1px solid var(--editor-edge); border-radius: 8px; font: .9375rem/1.65 var(--mono); }
+  .line-numbers { position: relative; overflow: hidden; border-right: 1px solid var(--editor-edge); color: var(--editor-muted); text-align: right; user-select: none; }
+  .line-numbers pre { position: absolute; inset: 0 8px auto 0; margin: 0; padding-top: 14px; font: inherit; white-space: pre; }
+  .editor textarea { width: 100%; min-height: 16rem; resize: vertical; padding: 14px; border: 0; border-radius: 0 7px 7px 0; background: transparent; color: inherit; color-scheme: dark; font: inherit; white-space: pre; tab-size: 4; }
+  .editor textarea::placeholder { color: var(--editor-muted); }
+  .editor textarea:focus-visible { outline-color: var(--editor-muted); }
+  .settings { display: grid; align-content: start; gap: 16px; min-width: 0; padding: 20px; }
+  .settings h2 { margin: 0; font-size: 1.0625rem; letter-spacing: -.01em; }
+  .checks { display: grid; gap: 2px; margin: 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
+  .checks label { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: .875rem; cursor: pointer; }
+  .checks input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+  .settings .button { justify-self: start; }
+  .page-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; }
+  .privacy { flex: 1 1 24rem; max-width: 70ch; }
+  .source-link { color: var(--muted); }
+  #createError:not(:empty) { margin-top: 12px; }
+  #out { margin-top: 24px; padding: 20px; }
+  #shortState:not(:empty), #shortNote:not(:empty) { margin: 12px 0 0; }
+  .result-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; min-width: 0; }
+  .result-main > div:first-child { flex: 1 1 12rem; min-width: 0; }
+  .result-main h2 { margin: 0 0 4px; font-size: .875rem; }
+  #shortOrigin { margin: 0; font: .8125rem/1.5 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .code { margin: 0; color: var(--accent); font: 650 clamp(1.75rem, 6vw, 2.25rem)/1.15 var(--mono); letter-spacing: .035em; font-variant-numeric: slashed-zero; overflow-wrap: anywhere; }
+  .code.long { font: .875rem/1.5 var(--mono); letter-spacing: normal; }
+  .result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  details { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  summary { width: fit-content; color: var(--muted); font-size: .875rem; cursor: pointer; }
+  .advanced { margin: 0; padding: 0; border: 0; }
+  .advanced summary { min-height: 32px; line-height: 32px; }
+  .advanced summary:hover { color: var(--ink); }
+  .advanced .field { max-width: 12rem; margin-top: 8px; }
+  .link-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .link-row a { flex: 1; min-width: 0; font: .8125rem/1.5 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 40rem) {
+    .workbench { grid-template-columns: minmax(0, 1fr); }
+    .editor { padding: 14px; border-radius: 15px 15px 0 0; }
+    .editor textarea { min-height: 10rem; }
+    .settings { padding: 16px; }
+    #out { padding: 16px; }
   }
-  .masthead p {
-    margin: var(--space-2) 0 0;
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    max-width: 56ch;
-  }
-
-  /* ---- 字段栈 ---- */
-  .stack { display: grid; gap: var(--space-6); }
-  .stack > * { margin: 0; }
-
-  textarea.bp-input {
-    height: auto;
-    min-height: 11rem;
-    padding: var(--space-3);
-    font-family: var(--font-mono);
-    font-size: var(--text-mono-sm);
-    line-height: var(--text-mono-sm--line-height);
-    resize: vertical;
-  }
-
-  /* ---- 下拉 ---- */
-  select.bp-input {
-    appearance: none;
-    padding-right: var(--space-10);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23bdb1a0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right var(--space-3) center;
-    cursor: pointer;
-  }
-  select.bp-input option { background-color: var(--color-surface); color: var(--color-text); }
-
-  /* ---- 复选 ---- */
-  .checks { display: grid; gap: var(--space-3); }
-
-  /* ---- 结果卡 ---- */
-  /* 结果区是页面的主角。它不是又一张卡, 而是一块铭牌:
-     短码单独一行放大显示, 四周留白, Copy 是牌座而非悬浮控件。 */
-  #out {
-    display: none;
-    margin-top: var(--space-10);
-    padding: var(--space-8) var(--space-6);
-    background-color: var(--color-surface-sunken);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--card-shadow);
-  }
-  #out.show { display: block; }
-
-  .plate { text-align: center; }
-  .plate .cap { margin-bottom: var(--space-4); }
-
-  /* 短码本体: 等宽, 放大, 字距放开。它是唯一需要被念出来的东西。 */
-  /* 字号档 mono-display 来自注册表 typography.scale, 由 build-registry 生成。 */
-  .code {
-    font-family: var(--text-mono-display--font-family);
-    font-size: var(--text-mono-display);
-    line-height: var(--text-mono-display--line-height);
-    letter-spacing: var(--text-mono-display--letter-spacing);
-    font-weight: var(--text-mono-display--font-weight);
-    color: var(--color-primary-text);
-    margin: 0;
-    word-break: break-all;
-  }
-
-  .plate-actions {
-    margin-top: var(--space-5);
-    display: flex;
-    justify-content: center;
-    gap: var(--space-2);
-  }
-
-  .plate-meta {
-    margin-top: var(--space-4);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--color-border);
-    font-size: var(--text-xs);
-    line-height: var(--text-xs--line-height);
-    color: var(--color-text-muted);
-  }
-
-  .cap {
-    font-size: var(--text-xs);
-    font-weight: var(--text-xs--font-weight);
-    line-height: var(--text-xs--line-height);
-    letter-spacing: var(--text-xs--letter-spacing);
-    color: var(--color-text-muted);
-    margin: 0 0 var(--space-2);
-  }
-
-  /* 链接行: URL 单行省略, Copy 不换行 */
-  .link-row { display: flex; align-items: center; gap: var(--space-2); }
-  .link-row a {
-    flex: 1; min-width: 0;
-    font-family: var(--font-mono);
-    font-size: var(--text-mono-sm);
-    line-height: var(--text-mono-sm--line-height);
-    color: var(--color-primary-text);
-    text-decoration: none;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .link-row a:hover { text-decoration: underline; text-underline-offset: 3px; }
-  .link-row--long a { font-size: var(--text-mono-sm); color: var(--color-text-muted); }
-  .link-row--long a:hover { color: var(--color-primary-text); }
-
-  #shortState { font-size: var(--text-xs); color: var(--color-text-muted); min-height: 1.4em; }
-  #shortState.err { color: var(--color-danger-text); }
-
-  .note { font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--color-text-muted); margin: 0; }
-  .note--warn { color: var(--color-warning-text); }
-
-  details { border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
-  details summary {
-    font-size: var(--text-xs); font-weight: 500; color: var(--color-text-muted);
-    cursor: pointer; user-select: none; list-style: none;
-    display: inline-flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-1) 0;
-  }
-  details summary::-webkit-details-marker { display: none; }
-  details summary::before {
-    content: ""; width: 0; height: 0; flex: none;
-    border-left: 4px solid currentColor;
-    border-top: 3.5px solid transparent;
-    border-bottom: 3.5px solid transparent;
-    transition: transform var(--duration-fast) var(--ease-out);
-  }
-  details[open] summary::before { transform: rotate(90deg); }
-  details summary:hover { color: var(--color-text); }
-  details[open] summary { margin-bottom: var(--space-3); }
-
-  /* ---- 页脚说明 ---- */
-  .footnote {
-    margin: var(--space-12) 0 0;
-    padding-top: var(--space-6);
-    border-top: 1px solid var(--color-border);
-    font-size: var(--text-xs);
-    line-height: 1.7;
-    color: var(--color-text-muted);
-    max-width: 62ch;
-  }
-  .footnote p { margin: 0 0 var(--space-2); }
-  .footnote p:last-child { margin-bottom: 0; }
-
-  @media (max-width: 480px) {
-    body { padding: var(--space-8) var(--space-4); }
-    textarea.bp-input { min-height: 8rem; }
-  }
-
 </style>
 </head>
 <body>
 <main>
   <header class="masthead">
-    <h1>new paste</h1>
-    <p>Encrypted in this browser before it leaves. The server stores ciphertext only.</p>
+    <h1>New paste</h1>
+    <p>Share text or code using an encrypted link.</p>
   </header>
 
-  <div class="stack" data-effect="stagger-in">
-    <div class="bp-field">
-      <label class="bp-label" for="t">Content</label>
-      <textarea id="t" class="bp-input" placeholder="Text, command or script. Newlines preserved exactly."></textarea>
-    </div>
-
-    <div class="bp-field">
-      <label class="bp-label" for="pw">Password (optional)</label>
-      <input id="pw" type="text" class="bp-input" placeholder="Leave empty for none" autocomplete="off">
-      <p class="bp-help" id="pwHelp">A password is the one secret the server never sees. Without it, the shortener can reconstruct the key from the link it stores.</p>
-    </div>
-
-    <div class="bp-field">
-      <label class="bp-label" for="len">Short link length</label>
-      <select id="len" class="bp-input">
-        <option value="3">3 characters &mdash; 238k combinations</option>
-        <option value="4" selected>4 characters &mdash; 14.8M combinations</option>
-        <option value="5">5 characters &mdash; 916M combinations</option>
-        <option value="6">6 characters &mdash; 56.8B combinations</option>
-        <option value="7">7 characters &mdash; 3.5T combinations</option>
-        <option value="8">8 characters &mdash; 218T combinations</option>
-      </select>
-    </div>
-
-    <div class="checks">
-      <label class="bp-check">
-        <input type="checkbox" id="burn" checked>
-        Burn after reading
-      </label>
-      <label class="bp-check">
-        <input type="checkbox" id="pin">
-        Lock to the first reader's IP
-      </label>
-    </div>
-
-    <button id="go" class="bp-btn bp-btn--block">Create</button>
-  </div>
-
-  <div id="out">
-    <div class="plate">
-      <p class="cap" id="plateCap">Link</p>
-      <p class="code" id="mainCode"></p>
-      <div class="plate-actions">
-        <a id="openUrl" class="bp-btn bp-btn--ghost bp-btn--sm" href="#" target="_blank" rel="noreferrer">Open</a>
-        <button id="copyMain" class="bp-btn bp-btn--sm" type="button">Copy</button>
+  <div class="workbench panel">
+    <div class="editor">
+      <label for="t">Paste content</label>
+      <div class="editor-source">
+        <div class="line-numbers" aria-hidden="true"><pre id="editorNumbers">1</pre></div>
+        <textarea id="t" wrap="off" spellcheck="false" placeholder="Paste text, commands, or a script"></textarea>
       </div>
     </div>
-    <p class="plate-meta" id="shortState" role="status"></p>
-    <p id="shortNote" class="note" style="text-align:center;margin-top:var(--space-2)"></p>
-    <details id="longWrap" style="margin-top:var(--space-5)">
+
+    <section class="settings" aria-labelledby="settingsTitle">
+      <h2 id="settingsTitle">Share settings</h2>
+      <div class="field">
+        <label for="pw">Password <span class="optional">(optional)</span></label>
+        <input id="pw" class="input" type="password" placeholder="Leave blank for no password" autocomplete="new-password">
+      </div>
+      <fieldset class="checks" aria-label="Reading restrictions">
+        <label><input type="checkbox" id="burn" checked> Burn after reading</label>
+        <label><input type="checkbox" id="pin"> Lock to the first reader's IP</label>
+      </fieldset>
+      <button id="go" class="button" type="button">Create link</button>
+      <details class="advanced">
+        <summary>Advanced options</summary>
+        <div class="field">
+          <label for="len">Short code length</label>
+          <select id="len" class="input">
+            <option value="3">3 characters</option>
+            <option value="4" selected>4 characters</option>
+            <option value="5">5 characters</option>
+            <option value="6">6 characters</option>
+            <option value="7">7 characters</option>
+            <option value="8">8 characters</option>
+          </select>
+        </div>
+      </details>
+    </section>
+  </div>
+  <p id="createError" class="note err" role="alert"></p>
+
+  <section id="out" class="panel" aria-labelledby="plateCap" hidden>
+    <div class="result-main">
+      <div>
+        <h2 id="plateCap">Paste link</h2>
+        <p id="shortOrigin" hidden></p>
+        <p class="code" id="mainCode"></p>
+      </div>
+      <div class="result-actions">
+        <a id="openUrl" class="button secondary" href="#" target="_blank" rel="noreferrer">Open</a>
+        <button id="copyMain" class="button" type="button">Copy link</button>
+      </div>
+    </div>
+    <p id="shortState" class="note" role="status"></p>
+    <p id="shortNote" class="note"></p>
+    <details id="longWrap" hidden>
       <summary>Full link</summary>
-      <div class="link-row link-row--long">
+      <div class="link-row">
         <a id="longUrl" href="#" target="_blank" rel="noreferrer"></a>
-        <button id="copyLong" class="bp-btn bp-btn--ghost bp-btn--sm" type="button">Copy</button>
+        <button id="copyLong" class="button secondary" type="button">Copy full link</button>
       </div>
     </details>
-  </div>
-
-  <footer class="footnote">
-    <p>The link is long because it carries a 256-bit random key in its fragment. Fragments are never sent to the server, so the key reaches it only inside ciphertext it cannot read.</p>
-    <p>Short links work by redirecting to that long link, which means the shortener holds the key. Set a password if the content matters.</p>
+  </section>
+  <footer class="page-footer note">
+    <p class="privacy note">Your browser encrypts the paste before upload. The shortener receives the link key, but never your password.</p>
+    <a class="source-link" href="https://github.com/Yuchenhui/khepri-secure-paste" target="_blank" rel="noreferrer">Source on GitHub</a>
   </footer>
 </main>
 
@@ -825,35 +185,63 @@ const $ = (id) => document.getElementById(id);
 const ITERATIONS = 200000;
 const SHORTENER = '__SHORTENER__';
 
+const editor = $('t');
+const editorNumbers = $('editorNumbers');
+let editorLineCount = 1;
+
+function syncLineScroll() {
+  editorNumbers.style.transform = `translateY(${-editor.scrollTop}px)`;
+}
+
+function updateLineNumbers() {
+  const count = editor.value.split('\n').length;
+  if (count !== editorLineCount) {
+    editorLineCount = count;
+    editor.parentElement.style.setProperty('--line-digits', String(count).length);
+    editorNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+  }
+  syncLineScroll();
+}
+
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('scroll', syncLineScroll);
+window.addEventListener('pageshow', updateLineNumbers);
+
 function b64u(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const bytes = new Uint8Array(buf);
+  let raw = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    raw += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 async function deriveKey(password, salt, keyBytes) {
-  const enc = new TextEncoder();
+  const passwordBytes = new TextEncoder().encode(password);
   // PrivateBin construction: random key bytes with the password appended.
-  const material = new Uint8Array(keyBytes.length + password.length);
+  const material = new Uint8Array(keyBytes.length + passwordBytes.length);
   material.set(keyBytes, 0);
-  material.set(enc.encode(password), keyBytes.length);
+  material.set(passwordBytes, keyBytes.length);
   const km = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name:'PBKDF2', salt, iterations:ITERATIONS, hash:'SHA-256' },
     km, { name:'AES-GCM', length:256 }, false, ['encrypt']);
 }
 
-// 短码单独放大显示, 完整 URL 只在 Open 按钮和折叠区里。
-// 需要在嘈杂环境里念出来的只是那几位码, 不是整条 URL。
-function setMain(href, text) {
+function setMain(href, code) {
   $('openUrl').href = href;
-  $('mainCode').textContent = text;
-  $('mainCode').title = href;
+  $('mainCode').textContent = code || href;
+  $('mainCode').classList.toggle('long', !code);
+  $('shortOrigin').textContent = code ? new URL(href).origin + '/' : '';
+  $('shortOrigin').hidden = !code;
+  $('longWrap').hidden = !code;
+  $('plateCap').textContent = code ? 'Short code' : 'Paste link';
 }
 
 function setState(text, isError) {
   const el = $('shortState');
   el.textContent = text;
-  el.className = isError ? 'err' : '';
+  el.classList.toggle('err', Boolean(isError));
 }
 
 function setNote(text, isWarn) {
@@ -880,9 +268,10 @@ function wireCopy(btnId, getText) {
   $(btnId).onclick = async () => {
     const btn = $(btnId);
     await copyText(getText());
-    const prev = btn.textContent;
+    const label = btnId === 'copyMain' ? 'Copy link' : 'Copy full link';
+    clearTimeout(btn.copyTimer);
     btn.textContent = 'Copied';
-    setTimeout(() => { btn.textContent = prev; }, 1400);
+    btn.copyTimer = setTimeout(() => { btn.textContent = label; }, 1400);
   };
 }
 
@@ -890,7 +279,10 @@ wireCopy('copyMain', () => $('openUrl').href);
 wireCopy('copyLong', () => $('longUrl').href);
 
 async function shorten(longUrl, len) {
-  const r = await fetch(SHORTENER + '/shorten?url=' + encodeURIComponent(longUrl) + '&len=' + len);
+  const r = await fetch(SHORTENER + '/shorten', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: longUrl, len }),
+  });
   const body = await r.text();
   if (!r.ok) throw new Error('HTTP ' + r.status + (body ? ' — ' + body.trim() : ''));
   return body.trim();
@@ -905,8 +297,11 @@ $('go').onclick = async () => {
   btn.setAttribute('aria-busy', 'true');
   btn.textContent = 'Encrypting';
   btn.prepend(makeSpinner());
-  $('out').classList.remove('show');
-  setState(''); setNote('');
+  $('out').hidden = true;
+  $('longWrap').open = false;
+  $('createError').textContent = '';
+  setState('');
+  setNote('');
 
   try {
     const id = [...crypto.getRandomValues(new Uint8Array(8))]
@@ -917,15 +312,22 @@ $('go').onclick = async () => {
     const password = $('pw').value;
 
     const key = await deriveKey(password, salt, keyBytes);
-    const adata = new TextEncoder().encode(id);
+    const enc = new TextEncoder();
     const ct = await crypto.subtle.encrypt(
-      { name:'AES-GCM', iv, additionalData: adata }, key, new TextEncoder().encode(text));
+      { name: 'AES-GCM', iv, additionalData: enc.encode(id) }, key, enc.encode(text));
+
+    // The reader decrypts this token before the server releases the body.
+    const proof = crypto.getRandomValues(new Uint8Array(32));
+    const claimIv = crypto.getRandomValues(new Uint8Array(12));
+    const claim = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: claimIv, additionalData: enc.encode('claim:' + id) }, key, proof);
+    const claimHash = await crypto.subtle.digest('SHA-256', proof);
 
     const r = await fetch('/api/paste', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         id, ct:b64u(ct), iv:b64u(iv), salt:b64u(salt),
-        adata:b64u(adata), iterations:ITERATIONS,
+        claim: b64u(claim), claimIv: b64u(claimIv), claimHash: b64u(claimHash), iterations: ITERATIONS,
         burn:$('burn').checked, pinIp:$('pin').checked,
       })
     });
@@ -937,9 +339,8 @@ $('go').onclick = async () => {
     $('longUrl').textContent = longUrl;
     $('longUrl').title = longUrl;
 
-    setMain(longUrl, longUrl);
-    $('plateCap').textContent = 'Link';
-    $('out').classList.add('show');
+    setMain(longUrl);
+    $('out').hidden = false;
 
     if (!SHORTENER) return;
 
@@ -947,9 +348,7 @@ $('go').onclick = async () => {
     try {
       const len = Number($('len').value);
       const short = await shorten(longUrl, len);
-      // 铭牌上只放短码本身; 域名是固定的, 念一遍就够了。
-      setMain(short, decodeURIComponent(short.split('/').pop()));
-      $('plateCap').textContent = 'Short link';
+      setMain(short, new URL(short).pathname.split('/').pop());
       setState('');
       if (!password) {
         setNote('No password set: the shortener holds the key from this link. Set a password if the content matters.', true);
@@ -958,13 +357,11 @@ $('go').onclick = async () => {
       setState('Shorten failed — using the long link. ' + e.message, true);
     }
   } catch (e) {
-    setState('Create failed: ' + e.message, true);
+    $('createError').textContent = 'Could not create the paste: ' + e.message;
   } finally {
     btn.disabled = false;
     btn.removeAttribute('aria-busy');
-    btn.textContent = 'Create';
-    const sp = btn.querySelector('.bp-spinner');
-    if (sp) sp.remove();
+    btn.textContent = 'Create link';
   }
 };
 
