@@ -1,0 +1,98 @@
+{
+ "vocabulary": "brand-pages/effects@0.2.0",
+ "limits": {
+  "style": 1,
+  "accent": 3,
+  "ambientLoops": 0
+ },
+ "allow": [
+  {
+   "id": "click-ripple",
+   "zh": "点击涟漪",
+   "en": "Click Ripple",
+   "group": "经典",
+   "category": "accent",
+   "budget": "accent",
+   "params": {
+    "motionClass": "micro",
+    "trigger": "click",
+    "mobile": "same",
+    "durationMs": 320,
+    "easing": "out"
+   },
+   "perf": "low",
+   "tiers": [
+    "showcase",
+    "operate"
+   ],
+   "verdict": "allowed",
+   "note": "按钮按下时从点击点扩散一次；只用 transform: scale + opacity，减弱动效时去掉。",
+   "trend": false,
+   "role": "accent",
+   "where": "主按钮 Create / Decrypt"
+  },
+  {
+   "id": "stagger-in",
+   "zh": "错峰入场",
+   "en": "Staggered Entrance",
+   "group": "进阶",
+   "category": "transition",
+   "budget": "accent",
+   "params": {
+    "motionClass": "entrance",
+    "trigger": "load-once",
+    "mobile": "same",
+    "durationMs": 400,
+    "easing": "out",
+    "staggerMs": 50
+   },
+   "perf": "low",
+   "tiers": [
+    "showcase",
+    "operate"
+   ],
+   "verdict": "recommended",
+   "note": "同组元素依次入场，间隔 40–60ms，最多 6 个错峰，单段 300–500ms。",
+   "trend": false,
+   "role": "accent",
+   "where": "表单字段首次入场"
+  },
+  {
+   "id": "skeleton",
+   "zh": "骨架屏",
+   "en": "Skeleton",
+   "group": "进阶",
+   "category": "functional",
+   "budget": "functional",
+   "params": {
+    "motionClass": "ambient",
+    "trigger": "data",
+    "mobile": "same",
+    "easing": "linear",
+    "shimmerMs": 1200
+   },
+   "perf": "low",
+   "tiers": [
+    "showcase",
+    "operate"
+   ],
+   "verdict": "recommended",
+   "note": "加载占位，形状与真实内容一致；>3s 才显示进度说明。",
+   "trend": false,
+   "role": "functional",
+   "where": "加密与解密等待期"
+  }
+ ],
+ "forbid": [
+  "particles",
+  "cta-shimmer-pulse",
+  "neumorphism",
+  "cursor-trail",
+  "border-beam",
+  "retro-grid",
+  "liquid-morph",
+  "aurora-bg",
+  "noise-grain"
+ ],
+ "conditional": {}
+}
