@@ -36,6 +36,7 @@
   <input id="pw" type="text" placeholder="Leave empty for none" autocomplete="off">
 
   <label><input type="checkbox" id="burn" checked> Burn after reading</label>
+  <label><input type="checkbox" id="pin"> Lock to the first reader's IP</label>
 
   <div class="row">
     <button id="go">Create</button>
@@ -90,7 +91,7 @@ $('go').onclick = async () => {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       id, ct:b64u(ct), iv:b64u(iv), salt:b64u(salt),
-      adata:b64u(adata), iterations:ITERATIONS, burn:$('burn').checked,
+      adata:b64u(adata), iterations:ITERATIONS, burn:$('burn').checked, pinIp:$('pin').checked,
     })
   });
   const j = await r.json();

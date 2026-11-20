@@ -39,6 +39,32 @@ Password is optional at creation time, as requested. Choose deliberately.
 
 PrivateBin's maintainers advise against URL shorteners for the same reason. This is the trade this project makes to get short links; the password is what makes it survivable.
 
+## Optional IP pinning
+
+A paste can be locked to the first IP that reads it: any later read from a different address gets the same 404 as a dead link.
+
+**Do not use this for a recipient behind CGNAT** — mobile carriers, many ISPs and corporate NATs share one public address across thousands of customers. In that case a stranger who opens the link first locks out the real recipient, and the recipient cannot unlock it.
+
+Good uses: a fixed-IP server, a specific office egress, a machine you control.
+Bad uses: a phone, a home broadband connection, anything that changes network.
+
+Pinning binds on first read, not on creation. The creator's own IP is never recorded, so you can still verify the link yourself before sending it.
+
+Details that matter:
+- A mismatched address gets `404 not found`, not `403`, so the link's existence is not a probing oracle.
+- The paste is left intact when a wrong IP is rejected, so the real recipient can still open it later.
+- `burn after reading` composes with pinning: pinned and burned means exactly one IP, exactly once.
+
+### Proxy configuration
+
+Behind nginx the socket address is always `127.0.0.1`, which would make every request look identical and pinning useless. Set:
+
+```nginx
+proxy_set_header X-Forwarded-For $remote_addr;
+```
+
+and run the core with `TRUST_PROXY=1`. Without that flag the core ignores `X-Forwarded-For` entirely — otherwise a client could send its own header and defeat pinning. The default is off.
+
 ## Crypto
 
 Matches PrivateBin's construction:

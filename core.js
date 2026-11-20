@@ -32,6 +32,12 @@ const MAX_BODY = 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_MAX = 60;
 
+// X-Forwarded-For is attacker-controlled unless a reverse proxy overwrites it.
+// Trust it only when explicitly enabled AND nginx is configured with
+//   proxy_set_header X-Forwarded-For $remote_addr;
+// Otherwise a client can send its own header and defeat IP pinning.
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+
 // Iteration count comes from the client and is only stored; the client does
 // the PBKDF2 work. Bound it so a hostile client cannot make viewers burn CPU.
 const MIN_ITER = 100000;
@@ -77,6 +83,14 @@ function rateOk(ip) {
   return r.n <= RATE_MAX;
 }
 
+function clientIp(req) {
+  if (TRUST_PROXY) {
+    const fwd = req.headers['x-forwarded-for'];
+    if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || '';
+}
+
 // split/join, not replace(): the values are not regex-escaped by us.
 function serveHtml(res, file, subs) {
   fs.readFile(path.join(__dirname, 'public', file), 'utf8', (err, src) => {
@@ -92,8 +106,7 @@ function serveHtml(res, file, subs) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')
-    .split(',')[0].trim();
+  const ip = clientIp(req);
   if (!rateOk(ip)) return send(res, 429, { error: 'rate limited' });
 
   const url = new URL(req.url, 'http://internal');
@@ -103,7 +116,7 @@ const server = http.createServer(async (req, res) => {
     try { p = JSON.parse(await readBody(req)); }
     catch { return send(res, 400, { error: 'bad json' }); }
 
-    const { id, ct, iv, salt, adata, iterations, burn } = p;
+    const { id, ct, iv, salt, adata, iterations, burn, pinIp } = p;
     if (!ID_RE.test(id)) return send(res, 400, { error: 'bad id' });
     if (store.has(id)) return send(res, 409, { error: 'id collision' });
     if (!ct || !iv || !salt || !adata) return send(res, 400, { error: 'missing fields' });
@@ -115,6 +128,10 @@ const server = http.createServer(async (req, res) => {
 
     store.set(id, {
       ct, iv, salt, adata, iterations: it, burn: !!burn,
+      pinIp: !!pinIp,
+      // The creator's own IP is never pinned: they must be able to re-check
+      // the link, and pinning to their address would lock out the recipient
+      // on shared-NAT networks. Only read requests are gated.
       expires: Date.now() + TTL_MS,
     });
     return send(res, 200, { id });
@@ -129,6 +146,20 @@ const server = http.createServer(async (req, res) => {
       store.delete(id);
       return send(res, 404, { error: 'expired' });
     }
+
+    const ip = clientIp(req);
+    if (e.pinIp) {
+      if (e.pinnedTo === undefined) {
+        // First read binds the paste to this address.
+        e.pinnedTo = ip;
+      } else if (e.pinnedTo !== ip) {
+        // Report the same 404 as a dead link so the paste's existence is
+        // not a probing oracle. The mapping is left intact: the original
+        // reader may still be waiting to open it.
+        return send(res, 404, { error: 'not found' });
+      }
+    }
+
     if (e.burn) store.delete(id);
     return send(res, 200, {
       ct: e.ct, iv: e.iv, salt: e.salt, iterations: e.iterations, adata: e.adata,
