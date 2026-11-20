@@ -10,6 +10,7 @@
     --surface: #161d24;
     --sunk:    #101720;
     --border:  #232d36;
+    --border-strong: #2e3a45;
     --fg:      #e6edf3;
     --muted:   #8b98a5;
     --accent:  #4fd1c5;
@@ -34,20 +35,18 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  main { width: 100%; max-width: 42rem; }
+  main { width: 100%; max-width: 40rem; }
 
   h1 {
     margin: 0 0 var(--s5);
     font-size: 20px;
     font-weight: 600;
     letter-spacing: -0.01em;
-    color: var(--fg);
   }
   h1 .dot { color: var(--accent); }
 
   /* ---------- fields ---------- */
   .field { margin-bottom: var(--s4); }
-
   .field > label {
     display: block;
     margin-bottom: var(--s2);
@@ -68,61 +67,38 @@
     line-height: 1.6;
     transition: border-color 120ms ease;
   }
-  textarea { height: 15rem; resize: vertical; }
-
-  textarea::placeholder,
-  input::placeholder { color: #5c6a76; }
-
-  textarea:hover, input:hover { border-color: #2e3a45; }
-
-  textarea:focus-visible,
-  input:focus-visible {
+  textarea { height: 14rem; resize: vertical; }
+  textarea::placeholder, input::placeholder { color: #5c6a76; }
+  textarea:hover, input:hover { border-color: var(--border-strong); }
+  textarea:focus-visible, input:focus-visible {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(79, 209, 197, 0.14);
   }
 
   /* ---------- checkboxes ---------- */
-  .checks {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s3);
-    margin-bottom: var(--s5);
-  }
-
+  .checks { display: flex; flex-direction: column; gap: var(--s3); margin-bottom: var(--s5); }
   .check {
-    display: flex;
-    align-items: center;
-    gap: var(--s2);
-    font-size: 13px;
-    color: var(--fg);
-    cursor: pointer;
-    user-select: none;
+    display: flex; align-items: center; gap: var(--s2);
+    font-size: 13px; color: var(--fg);
+    cursor: pointer; user-select: none;
   }
-
   .check input { position: absolute; opacity: 0; width: 0; height: 0; }
-
   .box {
-    flex: none;
-    width: 16px;
-    height: 16px;
-    border: 1px solid #34414d;
-    border-radius: 4px;
-    background: var(--sunk);
-    display: grid;
-    place-items: center;
+    flex: none; width: 16px; height: 16px;
+    border: 1px solid #34414d; border-radius: 4px;
+    background: var(--sunk); display: grid; place-items: center;
     transition: border-color 120ms ease, background-color 120ms ease;
   }
-  .box svg { width: 11px; height: 11px; stroke: var(--bg); stroke-width: 2.6;
-             fill: none; stroke-linecap: round; stroke-linejoin: round;
-             opacity: 0; transform: scale(0.6);
-             transition: opacity 100ms ease, transform 100ms ease; }
-
+  .box svg {
+    width: 11px; height: 11px; stroke: var(--bg); stroke-width: 2.6;
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+    opacity: 0; transform: scale(0.6);
+    transition: opacity 100ms ease, transform 100ms ease;
+  }
   .check:hover .box { border-color: var(--accent); }
-
   .check input:checked + .box { background: var(--accent); border-color: var(--accent); }
   .check input:checked + .box svg { opacity: 1; transform: scale(1); }
-
   .check input:focus-visible + .box {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(79, 209, 197, 0.14);
@@ -130,12 +106,8 @@
 
   /* ---------- buttons ---------- */
   button {
-    font: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    padding: 9px var(--s4);
-    border: 0;
-    border-radius: var(--r);
+    font: inherit; font-size: 14px; font-weight: 500;
+    padding: 9px var(--s4); border: 0; border-radius: var(--r);
     cursor: pointer;
     transition: filter 120ms ease, opacity 120ms ease;
   }
@@ -143,14 +115,9 @@
   button:active:not(:disabled) { filter: brightness(0.94); }
   button:disabled { opacity: 0.55; cursor: default; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
   .primary { background: var(--accent); color: #0b1116; }
-  .ghost {
-    background: transparent;
-    color: var(--fg);
-    border: 1px solid var(--border);
-  }
-  .ghost:hover:not(:disabled) { border-color: #34414d; filter: none; background: var(--surface); }
+  .ghost { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+  .ghost:hover:not(:disabled) { border-color: var(--border-strong); filter: none; background: var(--surface); }
 
   /* ---------- result ---------- */
   #out {
@@ -163,59 +130,66 @@
   }
   #out.show { display: block; }
 
-  .out-row { margin-bottom: var(--s4); }
-  .out-row:last-child { margin-bottom: 0; }
+  /* One link row. The URL never wraps — it truncates with an ellipsis and
+     keeps its place, so the Copy button never gets pushed to another line. */
+  .link-row { display: flex; align-items: center; gap: var(--s2); }
+  .link-row a {
+    flex: 1; min-width: 0;
+    font-family: var(--mono); font-size: 13px;
+    color: var(--accent); text-decoration: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .link-row a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .link-row.secondary a { font-size: 12px; color: var(--muted); }
+  .link-row.secondary a:hover { color: var(--accent); }
 
-  .out-row .cap {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
+  .copy {
+    flex: none; font-size: 12px; padding: 5px 10px;
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+  }
+  .copy:hover { color: var(--fg); border-color: var(--border-strong); }
+
+  .cap {
+    font-size: 12px; font-weight: 500; color: var(--muted);
     margin-bottom: var(--s2);
   }
 
-  .url {
-    display: flex;
-    align-items: center;
-    gap: var(--s2);
-    font-family: var(--mono);
-    font-size: 13px;
+  #shortState { font-size: 12px; color: var(--muted); margin-top: var(--s2); min-height: 1.2em; }
+  #shortState.err { color: var(--danger); }
+
+  /* The long link is the fallback, not a peer of the short one. Collapsed
+     by default so the eye lands on the link that is meant to be shared. */
+  details { margin-top: var(--s3); }
+  details summary {
+    font-size: 12px; color: var(--muted);
+    cursor: pointer; user-select: none;
+    list-style: none; display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 0;
   }
-  .url a {
-    color: var(--accent);
-    text-decoration: none;
-    word-break: break-all;
-    flex: 1;
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before {
+    content: ""; width: 0; height: 0;
+    border-left: 4px solid currentColor;
+    border-top: 3.5px solid transparent;
+    border-bottom: 3.5px solid transparent;
+    transition: transform 120ms ease;
   }
-  .url a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details summary:hover { color: var(--fg); }
+  details[open] summary { margin-bottom: var(--s2); }
 
-  .copy {
-    flex: none;
-    font-size: 12px;
-    padding: 5px 10px;
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-  .copy:hover { color: var(--fg); }
+  .note { font-size: 12px; color: var(--muted); margin: var(--s2) 0 0; line-height: 1.6; }
+  .note.warn { color: #d8a657; }
 
-  #shortRow { display: none; }
-  #shortRow.show { display: block; }
-
-  #shortStatus { font-size: 12px; color: var(--muted); margin-top: var(--s2); }
-  #shortStatus.err { color: var(--danger); }
-
-  /* ---------- footnote ---------- */
   .hint {
     margin: var(--s6) 0 0;
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--muted);
-    max-width: 62ch;
+    font-size: 12px; line-height: 1.7; color: var(--muted);
+    max-width: 60ch;
   }
 
   @media (max-width: 480px) {
     body { padding: var(--s5) var(--s3); }
-    textarea { height: 11rem; }
+    textarea { height: 10rem; }
   }
 </style>
 </head>
@@ -249,22 +223,21 @@
   <button id="go" class="primary">Create</button>
 
   <div id="out">
-    <div class="out-row">
-      <div class="cap">Long link</div>
-      <div class="url">
-        <a id="longUrl" href="#" target="_blank"></a>
+    <div class="cap">Link</div>
+    <div class="link-row">
+      <a id="mainUrl" href="#" target="_blank" rel="noreferrer"></a>
+      <button class="copy" id="copyMain">Copy</button>
+    </div>
+    <div id="shortState"></div>
+    <div id="shortNote"></div>
+
+    <details id="longWrap">
+      <summary>Long link</summary>
+      <div class="link-row secondary">
+        <a id="longUrl" href="#" target="_blank" rel="noreferrer"></a>
         <button class="copy" id="copyLong">Copy</button>
       </div>
-    </div>
-
-    <div class="out-row" id="shortRow">
-      <div class="cap">Short link</div>
-      <div class="url">
-        <a id="shortUrl" href="#" target="_blank"></a>
-        <button class="copy" id="copyShort">Copy</button>
-      </div>
-      <div id="shortStatus"></div>
-    </div>
+    </details>
   </div>
 
   <p class="hint">
@@ -298,37 +271,53 @@ async function deriveKey(password, salt, keyBytes) {
     km, { name:'AES-GCM', length:256 }, false, ['encrypt']);
 }
 
-function setStatus(text, isError) {
-  const el = $('shortStatus');
-  el.textContent = text;              // textContent: never rebuilds siblings
+function setMain(href, text) {
+  const a = $('mainUrl');
+  a.href = href;
+  a.textContent = text;
+  a.title = href;              // full value on hover, since the row truncates
+}
+
+function setState(text, isError) {
+  const el = $('shortState');
+  el.textContent = text;
   el.className = isError ? 'err' : '';
 }
 
-function wireCopy(btnId, getUrl) {
+function setNote(text, isWarn) {
+  const el = $('shortNote');
+  el.textContent = text;
+  el.className = text ? (isWarn ? 'note warn' : 'note') : '';
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // clipboard API needs a secure context; fall back to a temp selection
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+}
+
+function wireCopy(btnId, getText) {
   $(btnId).onclick = async () => {
     const btn = $(btnId);
-    const url = getUrl();
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // clipboard API needs a secure context; fall back to a temp selection
-      const ta = document.createElement('textarea');
-      ta.value = url;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-    }
+    await copyText(getText());
     const prev = btn.textContent;
     btn.textContent = 'Copied';
     setTimeout(() => { btn.textContent = prev; }, 1400);
   };
 }
 
-wireCopy('copyLong',  () => $('longUrl').href);
-wireCopy('copyShort', () => $('shortUrl').href);
+wireCopy('copyMain', () => $('mainUrl').href);
+wireCopy('copyLong', () => $('longUrl').href);
 
 async function shorten(longUrl) {
   const r = await fetch(SHORTENER + '/shorten?url=' + encodeURIComponent(longUrl));
@@ -344,6 +333,8 @@ $('go').onclick = async () => {
 
   btn.disabled = true;
   btn.textContent = 'Encrypting…';
+  $('out').classList.remove('show');
+  setState(''); setNote('');
 
   try {
     const id = [...crypto.getRandomValues(new Uint8Array(8))]
@@ -372,41 +363,32 @@ $('go').onclick = async () => {
     const longUrl = location.origin + '/?' + id + '#' + b64u(keyBytes);
     $('longUrl').href = longUrl;
     $('longUrl').textContent = longUrl;
+    $('longUrl').title = longUrl;
+
+    // The long link is the only guaranteed-working link, so it is shown
+    // first. The short link then replaces it in place — never by rebuilding
+    // the container, which is what froze the old Shorten button.
+    setMain(longUrl, longUrl);
     $('out').classList.add('show');
 
     if (!SHORTENER) return;
 
-    // The Shorten button is built once and never re-created. Its label is
-    // updated through this closure only — never via innerHTML, which would
-    // replace the node out from under it and freeze the label.
-    const shortRow = $('shortRow');
-    const btn = document.createElement('button');
-    btn.className = 'ghost';
-    btn.textContent = 'Shorten';
-    btn.onclick = async () => {
-      btn.disabled = true;
-      btn.textContent = 'Shortening…';
-      setStatus('');
-      try {
-        const short = await shorten(longUrl);
-        $('shortUrl').href = short;
-        $('shortUrl').textContent = short;
-        shortRow.classList.add('show');
-        setStatus('');
-      } catch (e) {
-        shortRow.classList.remove('show');
-        setStatus('Shorten failed: ' + e.message, true);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Shorten';
+    // No Shorten button: shortening is automatic, because the short link is
+    // the one meant to be shared. The long link stays one click away below.
+    setState('Shortening…');
+    try {
+      const short = await shorten(longUrl);
+      setMain(short, short);
+      setState('');
+      if (!password) {
+        setNote('No password set: the shortener holds this link’s key. ' +
+                'Set a password if the content matters.', true);
       }
-    };
-    const holder = document.createElement('div');
-    holder.style.marginTop = '12px';
-    holder.appendChild(btn);
-    shortRow.parentNode.insertBefore(holder, shortRow);
+    } catch (e) {
+      setState('Shorten failed — using the long link. ' + e.message, true);
+    }
   } catch (e) {
-    setStatus('Create failed: ' + e.message, true);
+    setState('Create failed: ' + e.message, true);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Create';
