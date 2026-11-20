@@ -232,7 +232,7 @@ function setMain(href, code) {
   $('openUrl').href = href;
   $('mainCode').textContent = code || href;
   $('mainCode').classList.toggle('long', !code);
-  $('shortOrigin').textContent = code ? new URL(href).origin + '/' : '';
+  $('shortOrigin').textContent = code ? href.slice(0, -code.length) : '';
   $('shortOrigin').hidden = !code;
   $('longWrap').hidden = !code;
   $('plateCap').textContent = code ? 'Short code' : 'Paste link';

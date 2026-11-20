@@ -4,11 +4,11 @@ const http = require('node:http');
 const { createHash, timingSafeEqual } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { HTTP_OPTIONS, clientIp, createRateLimit, send, readJson } = require('./http-util');
+const { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJson } = require('./http-util');
 
 const PORT = Number(process.env.PORT || 8080);
 const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
-const SHORTENER = process.env.SHORTENER_URL ? new URL(process.env.SHORTENER_URL).origin : '';
+const SHORTENER = process.env.SHORTENER_URL ? configuredHttpBase(process.env.SHORTENER_URL, true) : '';
 const MAX_BODY = 1024 * 1024;
 const MAX_PASTES = 1024;
 const MAX_STORED_BYTES = 16 * MAX_BODY;

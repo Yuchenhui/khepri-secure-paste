@@ -73,17 +73,17 @@ ciphertext   = AES-256-GCM(plaintext, iv, adata = pasteId)
 PORT=8080 TTL_HOURS=24 node core.js
 
 # shortener
-PORT=8081 PUBLIC_URL=https://s.example.com ALLOWED_ORIGIN=https://paste.example.com \
+PORT=8081 PUBLIC_URL=https://paste.example.com/s ALLOWED_ORIGIN=https://paste.example.com \
   node shortener.js
 ```
 
 Set the core's `SHORTENER_URL` to enable automatic short link creation:
 
 ```bash
-PORT=8080 SHORTENER_URL=https://s.example.com node core.js
+PORT=8080 SHORTENER_URL=https://paste.example.com/s node core.js
 ```
 
-Both processes bind `127.0.0.1`. The Linux Docker deployment uses host networking so nginx can reach those loopback ports. Use TLS and separate hostnames for public access. The shortener's `ALLOWED_ORIGIN` is the core's public origin and its only permitted redirect origin. `PUBLIC_URL` is the shortener's own public origin. CORS is not authentication.
+Both processes bind `127.0.0.1`. The Linux Docker deployment uses host networking so nginx can reach the loopback ports and route `/s/` to the shortener, stripping that prefix. The same public hostname and TLS certificate serve both paths. `ALLOWED_ORIGIN` is the core's public origin and the only permitted redirect origin. `PUBLIC_URL` is the shortener's public base URL, including `/s`. CORS is not authentication.
 
 ## Storage
 

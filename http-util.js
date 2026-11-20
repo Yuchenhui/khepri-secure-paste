@@ -5,6 +5,15 @@ const { isIP } = require('node:net');
 const HTTP_OPTIONS = { headersTimeout: 10000, requestTimeout: 15000, connectionsCheckingInterval: 1000 };
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
+function configuredHttpBase(value, allowPrefix = false) {
+  const url = new URL(value);
+  const validPath = allowPrefix ? /^\/(?:[A-Za-z0-9_-]+\/?)?$/.test(url.pathname) : url.pathname === '/';
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || !validPath) {
+    throw new Error('Expected an HTTP(S) base URL without credentials, query, or fragment');
+  }
+  return url.origin + url.pathname.replace(/\/$/, '');
+}
+
 function clientIp(req) {
   const address = TRUST_PROXY ? req.headers['x-forwarded-for'] : req.socket.remoteAddress;
   return typeof address === 'string' && isIP(address) ? address : null;
@@ -72,4 +81,4 @@ async function readJson(req, res, maxBytes) {
   }
 }
 
-module.exports = { HTTP_OPTIONS, clientIp, createRateLimit, send, readJson };
+module.exports = { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJson };
