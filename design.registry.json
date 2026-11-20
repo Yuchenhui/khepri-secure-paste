@@ -1,0 +1,860 @@
+{
+  "$schema": "../schema/design.registry.schema.json",
+  "meta": {
+    "name": "khepri-tool",
+    "displayName": "石灰岩与青铜",
+    "version": "0.2.0",
+    "tier": "showcase",
+    "locale": "zh-CN",
+    "description": "自托管加密粘贴工具的界面。工具页而非营销页：深色单主题，暖灰石灰岩底，青铜色只做强调。无紫、无渐变文字、无外发光。",
+    "inspiration": [
+      "brand-pages 的 token 纪律与 lint 底线",
+      "界面气质取自旧工具与出土器物的手感，不取自机房冷光"
+    ]
+  },
+  "direction": {
+    "product": "khepri：自托管的加密粘贴服务。粘贴一段命令或脚本，拿到一个能重新敲一遍的短链接；服务端只存密文，密钥在浏览器里派生。给需要在受限终端之间传递命令的人。",
+    "character": [
+      "克制",
+      "精密",
+      "安静"
+    ],
+    "world": "石灰岩与青铜：墓室墙面那种偏暖的深灰，器物上氧化后的青铜色。不是机房的冷光，是手掌里一件旧工具的质感。",
+    "moments": [
+      "加密完成、链接出现的一刻",
+      "对方输对密码、明文完整铺开的一刻"
+    ],
+    "signature": "链接区像一块出土的铭牌：短码用等宽字单独成行，四周留白，Copy 按钮像牌座而非悬浮控件。"
+  },
+  "color": {
+    "primary": {
+      "base": "#d18a4e",
+      "derived": true
+    },
+    "scales": {
+      "primary": {
+        "50": "#fbf4ec",
+        "100": "#f6e6d4",
+        "200": "#eccaa8",
+        "300": "#dfa876",
+        "400": "#d18a4e",
+        "500": "#a85f27",
+        "600": "#8e4d1e",
+        "700": "#834a22",
+        "800": "#63391d",
+        "900": "#472a18",
+        "950": "#2a1a0f"
+      },
+      "neutral": {
+        "0": "#ffffff",
+        "25": "#f7f3ec",
+        "50": "#f0e9df",
+        "100": "#ded4c4",
+        "200": "#c4b8a4",
+        "300": "#bdb1a0",
+        "400": "#a99c88",
+        "450": "#9a8d78",
+        "500": "#8b7f6b",
+        "550": "#7a6f5d",
+        "600": "#6e6353",
+        "700": "#3a332a",
+        "800": "#272219",
+        "850": "#1e1a15",
+        "900": "#17140f",
+        "925": "#12100d",
+        "950": "#0c0a08"
+      },
+      "success": {
+        "50": "#eef7ee",
+        "100": "#d6ecd7",
+        "200": "#aed9b1",
+        "300": "#7fbd85",
+        "400": "#57a05f",
+        "500": "#3a8544",
+        "600": "#2a6c34",
+        "700": "#21562b",
+        "800": "#174021",
+        "900": "#0f2c17",
+        "950": "#08190d"
+      },
+      "warning": {
+        "50": "#fdf5e8",
+        "100": "#f9e7c6",
+        "200": "#f2cd93",
+        "300": "#e5ad5c",
+        "400": "#d3903a",
+        "500": "#b8762a",
+        "600": "#975c22",
+        "700": "#78491d",
+        "800": "#5a3717",
+        "900": "#3f2712",
+        "950": "#24160a"
+      },
+      "danger": {
+        "50": "#fdf2ef",
+        "100": "#fadfd8",
+        "200": "#f4bdb1",
+        "300": "#e99486",
+        "400": "#d96e5e",
+        "500": "#c25343",
+        "600": "#a33f31",
+        "700": "#823227",
+        "800": "#63271e",
+        "900": "#451c16",
+        "950": "#2a100c"
+      },
+      "info": {
+        "50": "#eef4f6",
+        "100": "#d8e6ea",
+        "200": "#b0ccd4",
+        "300": "#82aeb9",
+        "400": "#5c909f",
+        "500": "#457786",
+        "600": "#36616d",
+        "700": "#2c4d56",
+        "800": "#213a41",
+        "900": "#17282d",
+        "950": "#0e181b"
+      }
+    },
+    "themes": {
+      "dark": {
+        "bg": "{neutral.950}",
+        "bg-subtle": "{neutral.925}",
+        "surface": "{neutral.900}",
+        "surface-raised": "{neutral.850}",
+        "surface-sunken": "#080706",
+        "text": "{neutral.50}",
+        "text-muted": "{neutral.300}",
+        "text-subtle": "{neutral.400}",
+        "placeholder": "{neutral.300}",
+        "border": "{neutral.700}",
+        "border-strong": "{neutral.600}",
+        "primary": "{primary.400}",
+        "primary-hover": "{primary.300}",
+        "primary-active": "{primary.200}",
+        "on-primary": "{primary.950}",
+        "primary-text": "{primary.300}",
+        "primary-subtle": "{primary.400}/0.13",
+        "focus-ring": "{primary.400}",
+        "accent": "{primary.300}",
+        "accent-text": "{primary.300}",
+        "success": "{success.400}",
+        "success-text": "{success.300}",
+        "success-subtle": "{success.400}/0.13",
+        "warning": "{warning.300}",
+        "warning-text": "{warning.200}",
+        "warning-subtle": "{warning.400}/0.13",
+        "danger": "{danger.400}",
+        "danger-hover": "{danger.300}",
+        "danger-active": "{danger.200}",
+        "on-danger": "{danger.950}",
+        "danger-text": "{danger.300}",
+        "danger-subtle": "{danger.400}/0.13",
+        "info": "{info.400}",
+        "info-text": "{info.300}",
+        "info-subtle": "{info.400}/0.13",
+        "disabled-bg": "{neutral.850}",
+        "disabled-text": "{neutral.500}",
+        "overlay": "#000000/0.62",
+        "inverse-bg": "#070605",
+        "inverse-text": "{neutral.50}",
+        "inverse-text-muted": "{neutral.400}",
+        "inverse-border": "#ffffff/0.08",
+        "hero-bg": "{neutral.950}",
+        "hero-text": "#ffffff",
+        "hero-text-muted": "#ffffff/0.8"
+      },
+      "light": {
+        "bg": "{neutral.950}",
+        "bg-subtle": "{neutral.925}",
+        "surface": "{neutral.900}",
+        "surface-raised": "{neutral.850}",
+        "surface-sunken": "#080706",
+        "text": "{neutral.50}",
+        "text-muted": "{neutral.300}",
+        "text-subtle": "{neutral.400}",
+        "placeholder": "{neutral.300}",
+        "border": "{neutral.700}",
+        "border-strong": "{neutral.600}",
+        "primary": "{primary.400}",
+        "primary-hover": "{primary.300}",
+        "primary-active": "{primary.200}",
+        "on-primary": "{primary.950}",
+        "primary-text": "{primary.300}",
+        "primary-subtle": "{primary.400}/0.13",
+        "focus-ring": "{primary.400}",
+        "accent": "{primary.300}",
+        "accent-text": "{primary.300}",
+        "success": "{success.400}",
+        "success-text": "{success.300}",
+        "success-subtle": "{success.400}/0.13",
+        "warning": "{warning.300}",
+        "warning-text": "{warning.200}",
+        "warning-subtle": "{warning.400}/0.13",
+        "danger": "{danger.400}",
+        "danger-hover": "{danger.300}",
+        "danger-active": "{danger.200}",
+        "on-danger": "{danger.950}",
+        "danger-text": "{danger.300}",
+        "danger-subtle": "{danger.400}/0.13",
+        "info": "{info.400}",
+        "info-text": "{info.300}",
+        "info-subtle": "{info.400}/0.13",
+        "disabled-bg": "{neutral.850}",
+        "disabled-text": "{neutral.500}",
+        "overlay": "#000000/0.62",
+        "inverse-bg": "#070605",
+        "inverse-text": "{neutral.50}",
+        "inverse-text-muted": "{neutral.400}",
+        "inverse-border": "#ffffff/0.08",
+        "hero-bg": "{neutral.950}",
+        "hero-text": "#ffffff",
+        "hero-text-muted": "#ffffff/0.8"
+      }
+    },
+    "gradients": {}
+  },
+  "typography": {
+    "families": {
+      "body": {
+        "stack": [
+          "Inter",
+          "Noto Sans SC",
+          "PingFang SC",
+          "Microsoft YaHei",
+          "system-ui",
+          "sans-serif"
+        ],
+        "license": "OFL-1.1",
+        "source": "https://github.com/rsms/inter"
+      },
+      "mono": {
+        "stack": [
+          "JetBrains Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace"
+        ],
+        "license": "OFL-1.1",
+        "source": "https://github.com/JetBrains/JetBrainsMono"
+      },
+      "display": {
+        "stack": [
+          "Inter",
+          "Noto Sans SC",
+          "PingFang SC",
+          "Microsoft YaHei",
+          "system-ui",
+          "sans-serif"
+        ],
+        "license": "OFL-1.1",
+        "source": "https://github.com/rsms/inter"
+      }
+    },
+    "weights": [
+      400,
+      500,
+      600
+    ],
+    "maxHeadingWeight": 600,
+    "scale": {
+      "body": {
+        "size": "16px",
+        "lineHeight": 1.6,
+        "weight": 400,
+        "tracking": "0",
+        "family": "body"
+      },
+      "body-lg": {
+        "size": "18px",
+        "lineHeight": 1.65,
+        "weight": 400,
+        "tracking": "0",
+        "family": "body"
+      },
+      "display-lg": {
+        "size": "clamp(34px, 4.6vw, 64px)",
+        "lineHeight": 1.1,
+        "weight": 600,
+        "tracking": "0",
+        "family": "display"
+      },
+      "display-md": {
+        "size": "clamp(28px, 3.2vw, 44px)",
+        "lineHeight": 1.16,
+        "weight": 600,
+        "tracking": "0",
+        "family": "display"
+      },
+      "display-xl": {
+        "size": "clamp(40px, 6.4vw, 88px)",
+        "lineHeight": 1.06,
+        "weight": 600,
+        "tracking": "0",
+        "family": "display"
+      },
+      "mono-body": {
+        "size": "14px",
+        "lineHeight": 1.6,
+        "weight": 400,
+        "tracking": "0",
+        "family": "mono"
+      },
+      "mono-sm": {
+        "size": "13px",
+        "lineHeight": 1.6,
+        "weight": 400,
+        "tracking": "0",
+        "family": "mono"
+      },
+      "sm": {
+        "size": "14px",
+        "lineHeight": 1.55,
+        "weight": 400,
+        "tracking": "0",
+        "family": "body"
+      },
+      "title-lg": {
+        "size": "22px",
+        "lineHeight": 1.3,
+        "weight": 600,
+        "tracking": "-0.01em",
+        "family": "body"
+      },
+      "title-md": {
+        "size": "22px",
+        "lineHeight": 1.3,
+        "weight": 600,
+        "tracking": "-0.01em",
+        "family": "body"
+      },
+      "title-sm": {
+        "size": "18px",
+        "lineHeight": 1.4,
+        "weight": 600,
+        "tracking": "0",
+        "family": "body"
+      },
+      "xs": {
+        "size": "12px",
+        "lineHeight": 1.45,
+        "weight": 500,
+        "tracking": "0.01em",
+        "family": "body"
+      }
+    },
+    "rules": {
+      "minBodyPx": 16,
+      "minTextPx": 12,
+      "cjkDisplayTracking": "0",
+      "maxLineLengthCh": 68,
+      "noItalicForCjk": true
+    }
+  },
+  "spacing": {
+    "unit": 4,
+    "scale": {
+      "0": 0,
+      "1": 4,
+      "2": 8,
+      "3": 12,
+      "4": 16,
+      "5": 20,
+      "6": 24,
+      "8": 32,
+      "10": 40,
+      "12": 48,
+      "16": 64,
+      "20": 80,
+      "24": 96
+    },
+    "layout": {
+      "containerMax": 960,
+      "gutter": "clamp(16px, 4vw, 32px)",
+      "sectionY": "clamp(24px, 5vw, 48px)"
+    }
+  },
+  "radius": {
+    "none": 0,
+    "xs": 3,
+    "sm": 6,
+    "md": 8,
+    "lg": 12,
+    "xl": 16,
+    "full": 9999
+  },
+  "shadow": {
+    "dark": {
+      "1": {
+        "surface": "{neutral.900}",
+        "shadow": "inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 0.5px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4)"
+      },
+      "2": {
+        "surface": "{neutral.850}",
+        "shadow": "inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.5)"
+      },
+      "3": {
+        "surface": "{neutral.800}",
+        "shadow": "inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 0.5px rgb(255 255 255 / 0.09), 0 20px 40px -16px rgb(0 0 0 / 0.6)"
+      },
+      "4": {
+        "surface": "{neutral.700}",
+        "shadow": "inset 0 1px 0 rgb(255 255 255 / 0.07), 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 32px 64px -24px rgb(0 0 0 / 0.7)"
+      }
+    },
+    "light": {
+      "1": "0 0 0 0.5px rgb(23 20 15 / 0.08), 0 1px 2px rgb(23 20 15 / 0.06)",
+      "2": "0 0 0 0.5px rgb(23 20 15 / 0.08), 0 4px 8px -2px rgb(23 20 15 / 0.08)",
+      "3": "0 0 0 0.5px rgb(23 20 15 / 0.08), 0 8px 16px -4px rgb(23 20 15 / 0.10)",
+      "4": "0 0 0 0.5px rgb(23 20 15 / 0.08), 0 16px 32px -8px rgb(23 20 15 / 0.14)"
+    }
+  },
+  "motion": {
+    "durations": {
+      "instant": 120,
+      "fast": 200,
+      "base": 320,
+      "slow": 400
+    },
+    "maxMs": 500,
+    "easings": {
+      "out": "cubic-bezier(.2,.8,.2,1)",
+      "in": "cubic-bezier(.4,0,1,1)",
+      "inOut": "cubic-bezier(.65,0,.35,1)"
+    },
+    "entrance": {
+      "durationMs": 400,
+      "maxMs": 700,
+      "once": true,
+      "staggerMs": 50,
+      "staggerMax": 6,
+      "rise": "8px"
+    },
+    "loops": {
+      "spinnerMs": 800,
+      "ambientMinMs": 8000,
+      "ambientMaxMs": 20000,
+      "pauseOffscreen": true
+    },
+    "moments": {
+      "maxMs": 1200
+    },
+    "pressScale": 0.98,
+    "animatable": {
+      "keyframes": [
+        "transform",
+        "opacity"
+      ],
+      "transitions": [
+        "transform",
+        "opacity",
+        "color",
+        "background-color",
+        "border-color",
+        "outline-color",
+        "fill",
+        "stroke"
+      ],
+      "exceptions": []
+    },
+    "reducedMotion": {
+      "strategy": "final-state",
+      "keep": [
+        "颜色 / 底色反馈",
+        "焦点环"
+      ],
+      "drop": [
+        "位移",
+        "缩放",
+        "模糊",
+        "循环背景"
+      ]
+    }
+  },
+  "effects": {
+    "vocabulary": "brand-pages/effects@0.2.0",
+    "limits": {
+      "style": 1,
+      "accent": 3,
+      "ambientLoops": 0
+    },
+    "allow": [
+      {
+        "id": "click-ripple",
+        "role": "accent",
+        "where": "主按钮 Create / Decrypt",
+        "params": {
+          "durationMs": 320,
+          "trigger": "click"
+        },
+        "reason": "加密要跑几百毫秒，点击瞬间给一个物理回应，避免像卡死。"
+      },
+      {
+        "id": "stagger-in",
+        "role": "accent",
+        "where": "表单字段首次入场",
+        "params": {
+          "durationMs": 400,
+          "staggerMs": 50
+        },
+        "reason": "五个字段一次出现会显得拥挤，错开 50ms 让阅读顺序自然。"
+      },
+      {
+        "id": "skeleton",
+        "role": "functional",
+        "where": "加密与解密等待期",
+        "params": {
+          "shimmerMs": 1200
+        },
+        "reason": "PBKDF2 20 万次迭代在慢机器上可超过一秒，必须有可见等待态。"
+      }
+    ],
+    "forbid": [
+      "particles",
+      "cta-shimmer-pulse",
+      "neumorphism",
+      "cursor-trail",
+      "border-beam",
+      "retro-grid",
+      "liquid-morph",
+      "aurora-bg",
+      "noise-grain"
+    ],
+    "conditional": {}
+  },
+  "components": {
+    "button": {
+      "sizes": {
+        "md": {
+          "height": 40,
+          "paddingX": 16,
+          "fontSize": "sm",
+          "radius": "md",
+          "gap": 8
+        },
+        "sm": {
+          "height": 32,
+          "paddingX": 12,
+          "fontSize": "xs",
+          "radius": "sm",
+          "gap": 6
+        },
+        "lg": {
+          "height": 48,
+          "paddingX": 24,
+          "fontSize": "body",
+          "radius": "md",
+          "gap": 8
+        }
+      },
+      "fontWeight": 500,
+      "variants": {
+        "primary": {
+          "bg": "@primary",
+          "fg": "@on-primary",
+          "border": "transparent",
+          "hover": {
+            "bg": "@primary-hover"
+          },
+          "active": {
+            "bg": "@primary-active"
+          }
+        },
+        "ghost": {
+          "bg": "transparent",
+          "fg": "@text-muted",
+          "border": "@border",
+          "hover": {
+            "bg": "@surface-raised",
+            "fg": "@text"
+          },
+          "active": {
+            "bg": "@surface-sunken"
+          }
+        },
+        "secondary": {
+          "bg": "@surface",
+          "fg": "@text",
+          "border": "@border-strong",
+          "hover": {
+            "bg": "@bg-subtle"
+          },
+          "active": {
+            "bg": "@surface-sunken"
+          }
+        },
+        "danger": {
+          "bg": "@danger",
+          "fg": "@on-danger",
+          "border": "transparent",
+          "hover": {
+            "bg": "@danger-hover"
+          },
+          "active": {
+            "bg": "@danger-active"
+          }
+        }
+      },
+      "states": {
+        "focusVisible": {
+          "ring": "0 0 0 2px @bg, 0 0 0 4px @focus-ring",
+          "note": "只在 :focus-visible 显示"
+        },
+        "active": {
+          "scale": 0.98
+        },
+        "disabled": {
+          "bg": "@disabled-bg",
+          "fg": "@disabled-text",
+          "border": "transparent",
+          "cursor": "not-allowed",
+          "note": "不用 opacity 冒充禁用；aria-disabled 时仍可聚焦"
+        },
+        "loading": {
+          "spinnerPx": 14,
+          "spinnerStrokePx": 2,
+          "spinnerMs": 800,
+          "keepWidth": true,
+          "ariaBusy": true,
+          "label": "保留原文案并在前面加转圈，按钮宽度不变"
+        }
+      },
+      "motion": {
+        "duration": "fast",
+        "easing": "out",
+        "properties": [
+          "background-color",
+          "border-color",
+          "color",
+          "transform"
+        ]
+      },
+      "rules": [
+        "每个视口最多 1 个实心主按钮",
+        "按钮文案用动词开头",
+        "最小点击区域 32×32",
+        "等待态保留按钮宽度，避免布局跳动"
+      ]
+    },
+    "input": {
+      "height": 44,
+      "paddingX": 14,
+      "radius": "md",
+      "fontSize": "sm",
+      "bg": "@surface-sunken",
+      "fg": "@text",
+      "placeholder": "@placeholder",
+      "border": "@border-strong",
+      "hover": {
+        "border": "@border-strong"
+      },
+      "focus": {
+        "border": "@focus-ring",
+        "ring": "0 0 0 3px @focus-ring/0.24"
+      },
+      "error": {
+        "border": "@danger",
+        "ring": "0 0 0 3px @danger/0.2",
+        "message": "@danger-text"
+      },
+      "disabled": {
+        "bg": "@disabled-bg",
+        "fg": "@disabled-text",
+        "border": "@border"
+      },
+      "label": {
+        "fontSize": "sm",
+        "weight": 500,
+        "color": "@text",
+        "required": "visible"
+      },
+      "help": {
+        "fontSize": "xs",
+        "color": "@text-muted"
+      },
+      "rules": [
+        "每个输入框必须有可见 <label>，placeholder 只放示例",
+        "错误信息写在输入框下方，用 aria-describedby 关联",
+        "多行文本区允许 resize: vertical"
+      ]
+    },
+    "card": {
+      "bg": "@surface",
+      "border": "@border",
+      "radius": "lg",
+      "padding": 20,
+      "shadow": "1",
+      "hover": {
+        "shadow": "2",
+        "lift": "-2px"
+      },
+      "rules": [
+        "同一层卡片用同一档阴影",
+        "本页只有结果区一张卡"
+      ]
+    },
+    "toast": {
+      "radius": "md",
+      "padding": 12,
+      "shadow": "2",
+      "bg": "@surface-raised",
+      "fg": "@text",
+      "fgMuted": "@text-muted",
+      "durationMs": 5000,
+      "variants": {
+        "success": {
+          "accent": "@success"
+        },
+        "warning": {
+          "accent": "@warning"
+        },
+        "danger": {
+          "accent": "@danger"
+        }
+      },
+      "rules": [
+        "错误类不自动消失",
+        "role=status，错误用 role=alert"
+      ]
+    },
+    "navbar": {
+      "height": 64,
+      "bg": "@bg/0.82",
+      "bgScrolled": "@surface/0.9",
+      "blurPx": 12,
+      "border": "@border",
+      "link": "@text-muted",
+      "linkActive": "@text",
+      "rules": [
+        "本页无导航栏；字段保留以满足 schema，不渲染"
+      ]
+    },
+    "footer": {
+      "bg": "@inverse-bg",
+      "fg": "@inverse-text",
+      "fgMuted": "@inverse-text-muted",
+      "border": "@inverse-border",
+      "rules": [
+        "本页无页脚；字段保留以满足 schema，不渲染"
+      ]
+    },
+    "cta": {
+      "bg": "@hero-bg",
+      "fg": "@hero-text",
+      "fgMuted": "@hero-text-muted",
+      "radius": "lg",
+      "padding": 48,
+      "rules": [
+        "本页无 CTA 区块；字段保留以满足 schema，不渲染"
+      ]
+    },
+    "hero": {
+      "bg": "@hero-bg",
+      "fg": "@hero-text",
+      "fgMuted": "@hero-text-muted",
+      "titleSize": "title-lg",
+      "contrastAgainst": [
+        "{neutral.950}",
+        "{neutral.900}"
+      ],
+      "layers": [
+        "{neutral.800}",
+        "{neutral.900}",
+        "{neutral.950}"
+      ],
+      "rules": [
+        "工具页无 hero；标题即页面标题，标题字重 600"
+      ]
+    },
+    "badge": {
+      "height": 24,
+      "paddingX": 8,
+      "radius": "full",
+      "fontSize": "xs",
+      "variants": {
+        "neutral": {
+          "bg": "@bg-subtle",
+          "fg": "@text-muted"
+        },
+        "primary": {
+          "bg": "@primary-subtle",
+          "fg": "@primary-text"
+        },
+        "success": {
+          "bg": "@success-subtle",
+          "fg": "@success-text"
+        },
+        "warning": {
+          "bg": "@warning-subtle",
+          "fg": "@warning-text"
+        },
+        "danger": {
+          "bg": "@danger-subtle",
+          "fg": "@danger-text"
+        },
+        "info": {
+          "bg": "@info-subtle",
+          "fg": "@info-text"
+        }
+      }
+    }
+  },
+  "forbidden": {
+    "hues": [
+      {
+        "name": "紫 / 靛 / 紫罗兰",
+        "from": 225,
+        "to": 320,
+        "minSaturation": 25,
+        "appliesTo": [
+          "scales",
+          "themes",
+          "components",
+          "gradients",
+          "effects"
+        ]
+      }
+    ],
+    "maxTransitionMs": 500,
+    "entranceMaxMs": 700,
+    "minTextContrast": 4.5,
+    "minLargeTextContrast": 3,
+    "minUiContrast": 3,
+    "placeholderOnlyLabels": true,
+    "animateOnly": [
+      "transform",
+      "opacity"
+    ],
+    "layoutProperties": [
+      "width",
+      "height",
+      "top",
+      "left",
+      "right",
+      "bottom",
+      "margin",
+      "padding",
+      "inset",
+      "max-height",
+      "max-width",
+      "font-size",
+      "line-height",
+      "letter-spacing",
+      "border-width",
+      "grid-template-columns",
+      "grid-template-rows"
+    ],
+    "emojiInUi": true,
+    "fakeData": true,
+    "transitionAll": true,
+    "notes": [
+      "不用紫 / 靛 / 紫罗兰做强调色（色相 225–320°，饱和度 ≥25%）",
+      "不做全页霓虹发光、彩虹扫光、脉冲按钮",
+      "不用 emoji 充当图标",
+      "工具页不放假数据、假统计"
+    ]
+  }
+}
