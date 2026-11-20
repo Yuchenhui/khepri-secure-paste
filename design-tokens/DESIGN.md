@@ -23,7 +23,7 @@
 ## 0. 给 AI / 开发者的硬性要求
 
 1. 颜色、字号、圆角、阴影、时长、缓动只能写 `var(--…)`；不写十六进制、rgb()、hsl() 字面量（生成的 Token 文件除外）。
-2. 字号只用下面 §2 的 12 档；圆角只用 §4 的档位；时长只用 §6 的档位。
+2. 字号只用下面 §2 的 13 档；圆角只用 §4 的档位；时长只用 §6 的档位。
 3. 不用紫 / 靛 / 紫罗兰色（HSL 225–320°，饱和度 ≥25%）做按钮、强调色或渐变。
 4. 每个输入框都有可见 `<label>`；placeholder 只放示例。
 5. 只对 transform / opacity 做动画；颜色类过渡 ≤ 200ms；不写 `transition: all`。
@@ -116,6 +116,7 @@
 | `--text-display-md` | `clamp(28px, 3.2vw, 44px)` | 1.16 | 600 | 0 | display |
 | `--text-display-xl` | `clamp(40px, 6.4vw, 88px)` | 1.06 | 600 | 0 | display |
 | `--text-mono-body` | `14px` | 1.6 | 400 | 0 | mono |
+| `--text-mono-display` | `clamp(28px, 7vw, 40px)` | 1.1 | 500 | 0.08em | mono |
 | `--text-mono-sm` | `13px` | 1.6 | 400 | 0 | mono |
 | `--text-sm` | `14px` | 1.55 | 400 | 0 | body |
 | `--text-title-lg` | `22px` | 1.3 | 600 | -0.01em | body |

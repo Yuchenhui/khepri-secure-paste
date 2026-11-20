@@ -303,6 +303,13 @@
         "tracking": "0",
         "family": "mono"
       },
+      "mono-display": {
+        "size": "clamp(28px, 7vw, 40px)",
+        "lineHeight": 1.1,
+        "weight": 500,
+        "tracking": "0.08em",
+        "family": "mono"
+      },
       "mono-sm": {
         "size": "13px",
         "lineHeight": 1.6,

@@ -173,7 +173,11 @@
   --text-mono-sm--font-weight: 400;
   --text-mono-sm--letter-spacing: 0;
   --text-mono-sm--font-family: var(--font-mono);
-  --text-sm: 14px;
+  --text-mono-display: clamp(28px, 7vw, 40px);
+  --text-mono-display--line-height: 1.1;
+  --text-mono-display--font-weight: 500;
+  --text-mono-display--letter-spacing: 0.08em;
+  --text-mono-display--font-family: var(--font-mono);  --text-sm: 14px;
   --text-sm--line-height: 1.55;
   --text-sm--font-weight: 400;
   --text-sm--letter-spacing: 0;
@@ -582,7 +586,7 @@ html[data-motion="off"] [data-effect], html[data-motion="off"] [data-effect] > *
     -webkit-font-smoothing: antialiased;
   }
 
-  main { width: 100%; max-width: var(--layout-container); }
+  main { width: 100%; max-width: 40rem; }
 
   /* ---- 页头 ---- */
   .masthead { margin-bottom: var(--space-12); }
@@ -629,8 +633,50 @@ html[data-motion="off"] [data-effect], html[data-motion="off"] [data-effect] > *
   .checks { display: grid; gap: var(--space-3); }
 
   /* ---- 结果卡 ---- */
-  #out { display: none; }
-  #out.show { display: grid; gap: var(--space-4); }
+  /* 结果区是页面的主角。它不是又一张卡, 而是一块铭牌:
+     短码单独一行放大显示, 四周留白, Copy 是牌座而非悬浮控件。 */
+  #out {
+    display: none;
+    margin-top: var(--space-10);
+    padding: var(--space-8) var(--space-6);
+    background-color: var(--color-surface-sunken);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
+  }
+  #out.show { display: block; }
+
+  .plate { text-align: center; }
+  .plate .cap { margin-bottom: var(--space-4); }
+
+  /* 短码本体: 等宽, 放大, 字距放开。它是唯一需要被念出来的东西。 */
+  /* 字号档 mono-display 来自注册表 typography.scale, 由 build-registry 生成。 */
+  .code {
+    font-family: var(--text-mono-display--font-family);
+    font-size: var(--text-mono-display);
+    line-height: var(--text-mono-display--line-height);
+    letter-spacing: var(--text-mono-display--letter-spacing);
+    font-weight: var(--text-mono-display--font-weight);
+    color: var(--color-primary-text);
+    margin: 0;
+    word-break: break-all;
+  }
+
+  .plate-actions {
+    margin-top: var(--space-5);
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+
+  .plate-meta {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    color: var(--color-text-muted);
+  }
 
   .cap {
     font-size: var(--text-xs);
@@ -746,18 +792,19 @@ html[data-motion="off"] [data-effect], html[data-motion="off"] [data-effect] > *
     <button id="go" class="bp-btn bp-btn--block">Create</button>
   </div>
 
-  <div id="out" class="bp-card">
-    <div>
-      <p class="cap">Link</p>
-      <div class="link-row">
-        <a id="mainUrl" href="#" target="_blank" rel="noreferrer"></a>
-        <button id="copyMain" class="bp-btn bp-btn--ghost bp-btn--sm" type="button">Copy</button>
+  <div id="out">
+    <div class="plate">
+      <p class="cap" id="plateCap">Link</p>
+      <p class="code" id="mainCode"></p>
+      <div class="plate-actions">
+        <a id="openUrl" class="bp-btn bp-btn--ghost bp-btn--sm" href="#" target="_blank" rel="noreferrer">Open</a>
+        <button id="copyMain" class="bp-btn bp-btn--sm" type="button">Copy</button>
       </div>
     </div>
-    <p id="shortState" role="status"></p>
-    <p id="shortNote" class="note"></p>
-    <details id="longWrap">
-      <summary>Long link</summary>
+    <p class="plate-meta" id="shortState" role="status"></p>
+    <p id="shortNote" class="note" style="text-align:center;margin-top:var(--space-2)"></p>
+    <details id="longWrap" style="margin-top:var(--space-5)">
+      <summary>Full link</summary>
       <div class="link-row link-row--long">
         <a id="longUrl" href="#" target="_blank" rel="noreferrer"></a>
         <button id="copyLong" class="bp-btn bp-btn--ghost bp-btn--sm" type="button">Copy</button>
@@ -795,11 +842,12 @@ async function deriveKey(password, salt, keyBytes) {
     km, { name:'AES-GCM', length:256 }, false, ['encrypt']);
 }
 
+// 短码单独放大显示, 完整 URL 只在 Open 按钮和折叠区里。
+// 需要在嘈杂环境里念出来的只是那几位码, 不是整条 URL。
 function setMain(href, text) {
-  const a = $('mainUrl');
-  a.href = href;
-  a.textContent = text;
-  a.title = href;
+  $('openUrl').href = href;
+  $('mainCode').textContent = text;
+  $('mainCode').title = href;
 }
 
 function setState(text, isError) {
@@ -838,7 +886,7 @@ function wireCopy(btnId, getText) {
   };
 }
 
-wireCopy('copyMain', () => $('mainUrl').href);
+wireCopy('copyMain', () => $('openUrl').href);
 wireCopy('copyLong', () => $('longUrl').href);
 
 async function shorten(longUrl, len) {
@@ -890,6 +938,7 @@ $('go').onclick = async () => {
     $('longUrl').title = longUrl;
 
     setMain(longUrl, longUrl);
+    $('plateCap').textContent = 'Link';
     $('out').classList.add('show');
 
     if (!SHORTENER) return;
@@ -898,10 +947,12 @@ $('go').onclick = async () => {
     try {
       const len = Number($('len').value);
       const short = await shorten(longUrl, len);
-      setMain(short, short);
+      // 铭牌上只放短码本身; 域名是固定的, 念一遍就够了。
+      setMain(short, decodeURIComponent(short.split('/').pop()));
+      $('plateCap').textContent = 'Short link';
       setState('');
       if (!password) {
-        setNote('No password set: the shortener holds this link's key. Set a password if the content matters.', true);
+        setNote('No password set: the shortener holds the key from this link. Set a password if the content matters.', true);
       }
     } catch (e) {
       setState('Shorten failed — using the long link. ' + e.message, true);

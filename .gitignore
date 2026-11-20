@@ -3,5 +3,3 @@ node_modules/
 *.key
 *.pem
 *.log
-design-tokens/tokens-only.css
-design-tokens/components-used.css
