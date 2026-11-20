@@ -1,39 +1,14 @@
-# syntax=docker/dockerfile:1
-#
-# Build once, run twice — one container per service:
-#
-#   docker run -d --name paste-core \
-#     -e PORT=8080 -e TRUST_PROXY=1 \
-#     -e SHORTENER_URL=https://s.paste.example.com \
-#     -p 127.0.0.1:18901:8080 \
-#     --read-only --cap-drop ALL --security-opt no-new-privileges \
-#     paste:latest node core.js
-#
-#   docker run -d --name paste-short \
-#     -e PORT=8080 -e PUBLIC_URL=https://s.paste.example.com \
-#     -e ALLOWED_ORIGIN=https://paste.example.com \
-#     -p 127.0.0.1:18902:8080 \
-#     --read-only --cap-drop ALL --security-opt no-new-privileges \
-#     paste:latest node shortener.js
-#
-# --read-only is safe: both services keep state in process memory and write
-# nothing to disk. It removes the whole class of on-disk compromise.
+FROM node:22-alpine
 
-FROM node:20-alpine
-
-# Non-root. Neither service writes, mounts, or binds a privileged port —
-# nginx on the host owns the public sockets and proxies to 127.0.0.1.
-RUN addgroup -S app && adduser -S app -G app
-
+LABEL org.opencontainers.image.source="https://github.com/Yuchenhui/khepri-secure-paste"
+ENV NODE_ENV=production
 WORKDIR /app
-COPY --chown=app:app core.js shortener.js ./
-COPY --chown=app:app public/ ./public/
+COPY core.js shortener.js http-util.js ./
+COPY public/new.html public/view.html ./public/
+USER node
 
-# No package.json and no npm install: the code uses only Node built-ins
-# (node:http, node:fs, node:path, node:crypto). Nothing to resolve, no
-# third-party packages, no supply-chain surface from dependencies.
-USER app
+HEALTHCHECK --interval=30s --timeout=4s --start-period=5s \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || '8080') + '/health', {signal:AbortSignal.timeout(3000)}).then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 
-# Both services listen on 8080 inside the container; only one runs per
-# container, so there is no conflict. nginx maps the host ports.
-EXPOSE 8080
+# Override with node shortener.js to run the short-link service.
+CMD ["node", "core.js"]

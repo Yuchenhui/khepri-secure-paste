@@ -30,40 +30,28 @@ The shortener is a separate process because it has different trust properties fr
 |---|---|---|
 | Network observer | cannot read | cannot read |
 | The core server | cannot read | cannot read |
-| **The shortener** | **can reconstruct the key and decrypt** | **cannot decrypt — never sees the password** |
-| Someone with only the short link | cannot read | cannot read |
+| Shortener or someone with the short link | Can resolve the URL and decrypt | Needs the password; weak passwords can be guessed offline |
 
-So: **short links without a password are protected only against passive observation.** With a password, the shortener is reduced to a redirect and the content stays zero-knowledge end to end.
-
-Password is optional at creation time, as requested. Choose deliberately.
-
-PrivateBin's maintainers advise against URL shorteners for the same reason. This is the trade this project makes to get short links; the password is what makes it survivable.
+Password protection is optional. For sensitive content use a strong password or share the long link directly. Short codes are not access controls. Short link creation sends the full URL in a POST body; disable request-body and redirect-URL logging for the shortener and its proxies.
 
 ## Optional IP pinning
 
-A paste can be locked to the first IP that reads it: any later read from a different address gets the same 404 as a dead link.
-
-**Do not use this for a recipient behind CGNAT** — mobile carriers, many ISPs and corporate NATs share one public address across thousands of customers. In that case a stranger who opens the link first locks out the real recipient, and the recipient cannot unlock it.
+A paste can be locked to the IP of the first successful read-proof submission. Any later read from a different IP returns `404`. Shared egress IPs do not distinguish users, and a network change can lock out the original recipient.
 
 Good uses: a fixed-IP server, a specific office egress, a machine you control.
 Bad uses: a phone, a home broadband connection, anything that changes network.
 
-Pinning binds on first read, not on creation. The creator's own IP is never recorded, so you can still verify the link yourself before sending it.
-
-Details that matter:
-- A mismatched address gets `404 not found`, not `403`, so the link's existence is not a probing oracle.
-- The paste is left intact when a wrong IP is rejected, so the real recipient can still open it later.
-- `burn after reading` composes with pinning: pinned and burned means exactly one IP, exactly once.
+Opening a page or entering a wrong password does not bind the IP or burn the paste. If the creator successfully reads it first, the creator's IP counts. With burn enabled, the ciphertext is removed atomically when released; a response lost after that point cannot be retried.
 
 ### Proxy configuration
 
-Behind nginx the socket address is always `127.0.0.1`, which would make every request look identical and pinning useless. Set:
+Set an authoritative client address on all proxied application routes:
 
 ```nginx
 proxy_set_header X-Forwarded-For $remote_addr;
 ```
 
-and run the core with `TRUST_PROXY=1`. Without that flag the core ignores `X-Forwarded-For` entirely — otherwise a client could send its own header and defeat pinning. The default is off.
+Run both services with `TRUST_PROXY=1` only behind that trusted proxy. Do not expose their upstream ports to untrusted clients. Without the flag, forwarded headers are ignored.
 
 ## Crypto
 
@@ -75,10 +63,8 @@ key          = PBKDF2-SHA256(material, salt, 200000)
 ciphertext   = AES-256-GCM(plaintext, iv, adata = pasteId)
 ```
 
-- `salt` 8 bytes, `iv` 16 bytes, both random per paste.
-- `adata` binds the ciphertext to its paste id: swapping ciphertexts between ids fails authentication.
-- AES-GCM authenticates, so a wrong password fails cleanly instead of producing garbage.
-- The fragment (`#key`) is never sent to the server — browsers do not transmit fragments. That is the whole basis of the core's zero-knowledge claim.
+- Each paste uses an 8-byte random salt and separate 12-byte random IVs for the body and the read token.
+- The browser authenticates both envelopes against the paste ID from the URL. It decrypts a random read token locally, sends only that token to the core, and gets the body ciphertext after the token matches its stored hash. Neither the password nor the URL fragment is sent to the core.
 
 ## Run
 
@@ -91,24 +77,24 @@ PORT=8081 PUBLIC_URL=https://s.example.com ALLOWED_ORIGIN=https://paste.example.
   node shortener.js
 ```
 
-The core needs the shortener's public URL to render the Shorten button:
+Set the core's `SHORTENER_URL` to enable automatic short link creation:
 
 ```bash
 PORT=8080 SHORTENER_URL=https://s.example.com node core.js
 ```
 
-Both bind `127.0.0.1`. Put each behind nginx with TLS and its own hostname. The shortener's `ALLOWED_ORIGIN` must be the core's public origin, since the browser calls it cross-origin.
+Both processes bind `127.0.0.1`. The Linux Docker deployment uses host networking so nginx can reach those loopback ports. Use TLS and separate hostnames for public access. The shortener's `ALLOWED_ORIGIN` is the core's public origin and its only permitted redirect origin. `PUBLIC_URL` is the shortener's own public origin. CORS is not authentication.
 
 ## Storage
 
-Both keep state in a `Map` in process memory. Restart drops everything. Intentional — a paste lives at most 24 hours and is destroyed on first read, so a database would be a component to back up and to leak for no benefit.
+Both services keep state in memory; restart drops all pastes and short links. A short link does not consume the paste and can redirect until its own TTL (24 hours by default), even if the paste is already gone.
 
 ## Limits
 
-- 1 MiB per paste. Larger transfers belong in `base64` or `scp`.
+- Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 1024 and accounts for up to 16 MiB of payload and metadata.
 - Core validates `iterations` between 100000 and 1000000; the client always sends 200000.
-- Shortener codes are 4 chars base62 and are consumed on first use.
-- Rate limits: core 60 req/min/IP, shortener 120 req/min/IP.
+- Base62 codes default to 4 characters. Creation API accepts lengths 3–12 and caps stored mappings at 4096.
+- Rate limits: core 60 req/min/IP; shortener 120 req/min/IP. Rate-limit tables expire old entries and are bounded.
 
 ## What is deliberately absent
 
