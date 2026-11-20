@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>khepri</title>
+<style>
+  :root { --bg:#12181f; --fg:#d5dbe1; --acc:#4da3a3; --bd:#2a343f; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,sans-serif;
+         margin:0; display:flex; justify-content:center; padding:32px 16px; }
+  main { width:100%; max-width:680px; }
+  h1 { font-size:18px; margin:0 0 16px; color:var(--acc); }
+  #pw { width:100%; box-sizing:border-box; background:#0d1218; color:var(--fg);
+        border:1px solid var(--bd); border-radius:4px; padding:9px; margin-bottom:10px; }
+  button { background:var(--acc); color:#0d1218; border:0; border-radius:4px;
+           padding:9px 18px; font-size:14px; cursor:pointer; }
+  button:hover { filter:brightness(1.1); }
+  #body { margin-top:16px; }
+  pre { background:#0d1218; border:1px solid var(--bd); border-radius:4px; padding:12px;
+        white-space:pre-wrap; word-break:break-all; font:13px/1.5 ui-monospace,monospace;
+        max-height:60vh; overflow:auto; margin:0; }
+  .msg { color:#7d8a96; font-size:13px; }
+  .err { color:#c05c5c; }
+</style>
+</head>
+<body>
+<main>
+  <h1>khepri · 读取粘贴</h1>
+  <input id="pw" type="password" placeholder="读取密码" autocomplete="off">
+  <button id="go">解密</button>
+  <div id="body"><p class="msg">此链接阅后即焚，解密后立即销毁。</p></div>
+</main>
+<script>
+const code = location.pathname.slice(1);
+
+function b64ToBytes(s) {
+  const bin = atob(s); const a = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+  return a;
+}
+
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' },
+    km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+}
+
+async function load() {
+  const r = await fetch('/api/paste/' + code);
+  if (!r.ok) {
+    document.getElementById('body').innerHTML =
+      '<p class="err">链接不存在、已过期或已被读取。</p>';
+    return null;
+  }
+  return r.json();
+}
+
+document.getElementById('go').onclick = async () => {
+  const pw = document.getElementById('pw').value;
+  if (!pw) return;
+  const data = await load();
+  if (!data) return;
+
+  try {
+    const key = await deriveKey(pw, b64ToBytes(data.salt));
+    // AES-GCM verifies integrity: a wrong password throws here.
+    const pt = await crypto.subtle.decrypt(
+      { name:'AES-GCM', iv:b64ToBytes(data.iv) }, key, b64ToBytes(data.ct));
+    const text = new TextDecoder().decode(pt);
+    // textContent preserves every newline and every character.
+    const pre = document.createElement('pre');
+    pre.textContent = text;
+    const box = document.getElementById('body');
+    box.innerHTML = '';
+    box.appendChild(pre);
+  } catch (e) {
+    document.getElementById('body').innerHTML =
+      '<p class="err">密码错误或内容已损坏。</p>';
+  }
+};
+</script>
+</body>
+</html>
