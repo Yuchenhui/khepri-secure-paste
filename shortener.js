@@ -27,6 +27,12 @@ const http = require('node:http');
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const CODE_LEN = parseInt(process.env.CODE_LEN || '4', 10);
+// Acceptable range for the client-chosen length. The floor is a security
+// decision, not a cosmetic one: 2 base62 chars is only 3844 combinations,
+// which is enumerable in minutes. The ceiling stops a hostile client from
+// requesting an absurd code.
+const MIN_CODE_LEN = 3;
+const MAX_CODE_LEN = 12;
 const TTL_HOURS = parseInt(process.env.TTL_HOURS || '24', 10);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';
 
@@ -51,11 +57,11 @@ function rateOk(ip) {
   return r.n <= RATE_MAX;
 }
 
-function genCode(crypto) {
+function genCode(crypto, len) {
   for (;;) {
-    const b = crypto.randomBytes(CODE_LEN);
+    const b = crypto.randomBytes(len);
     let s = '';
-    for (let i = 0; i < CODE_LEN; i++) s += ALPHABET[b[i] % ALPHABET.length];
+    for (let i = 0; i < len; i++) s += ALPHABET[b[i] % ALPHABET.length];
     if (!map.has(s)) return s;
   }
 }
@@ -76,13 +82,24 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // Shorten: GET /shorten?url=<encoded long url>, returns the short URL as text.
+  // Shorten: GET /shorten?url=<encoded long url>[&len=N]
+  // len is the requested code length in base62 characters. Bounded by
+  // MAX_CODE_LEN so a hostile client cannot ask for a 1 MB code.
   if (req.method === 'GET' && url.pathname === '/shorten') {
     const longUrl = url.searchParams.get('url');
     if (!longUrl || longUrl.length > MAX_URL) return send(res, 400, 'bad url');
     if (!/^https?:\/\//.test(longUrl)) return send(res, 400, 'bad scheme');
 
-    const code = genCode(require('node:crypto'));
+    let len = CODE_LEN;
+    if (url.searchParams.has('len')) {
+      const n = Number(url.searchParams.get('len'));
+      if (!Number.isInteger(n) || n < MIN_CODE_LEN || n > MAX_CODE_LEN) {
+        return send(res, 400, 'len must be ' + MIN_CODE_LEN + '..' + MAX_CODE_LEN);
+      }
+      len = n;
+    }
+
+    const code = genCode(require('node:crypto'), len);
     map.set(code, { url: longUrl, expires: Date.now() + TTL_HOURS * 3600 * 1000 });
     const short = (process.env.PUBLIC_URL || '') + '/' + code;
 

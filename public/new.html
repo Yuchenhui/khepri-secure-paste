@@ -66,6 +66,35 @@
     line-height: 1.6;
     transition: border-color 120ms ease;
   }
+
+  /* A native select keeps keyboard and screen-reader behaviour for free;
+     only the arrow is replaced, since the default one is invisible here. */
+  select {
+    width: 100%;
+    padding: var(--s3);
+    background: var(--sunk);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b98a5' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--s3) center;
+    padding-right: var(--s6);
+    transition: border-color 120ms ease;
+  }
+  select:hover { border-color: var(--border-strong); }
+  select:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79, 209, 197, 0.14);
+  }
+  /* Options render with the OS popup on Windows, which forces light
+     colours. Set them explicitly so the list stays readable. */
+  select option { background: var(--surface); color: var(--fg); }
   textarea { height: 14rem; resize: vertical; }
   textarea::placeholder, input::placeholder { color: #5c6a76; }
   textarea:hover, input:hover { border-color: var(--border-strong); }
@@ -206,6 +235,18 @@
     <input id="pw" type="text" placeholder="Leave empty for none" autocomplete="off">
   </div>
 
+  <div class="field">
+    <label for="len">Short link length</label>
+    <select id="len">
+      <option value="3">3 characters &mdash; 238k combinations</option>
+      <option value="4" selected>4 characters &mdash; 14.8M combinations</option>
+      <option value="5">5 characters &mdash; 916M combinations</option>
+      <option value="6">6 characters &mdash; 56.8B combinations</option>
+      <option value="7">7 characters &mdash; 3.5T combinations</option>
+      <option value="8">8 characters &mdash; 218T combinations</option>
+    </select>
+  </div>
+
   <div class="checks">
     <label class="check">
       <input type="checkbox" id="burn" checked>
@@ -318,8 +359,8 @@ function wireCopy(btnId, getText) {
 wireCopy('copyMain', () => $('mainUrl').href);
 wireCopy('copyLong', () => $('longUrl').href);
 
-async function shorten(longUrl) {
-  const r = await fetch(SHORTENER + '/shorten?url=' + encodeURIComponent(longUrl));
+async function shorten(longUrl, len) {
+  const r = await fetch(SHORTENER + '/shorten?url=' + encodeURIComponent(longUrl) + '&len=' + len);
   const body = await r.text();
   if (!r.ok) throw new Error('HTTP ' + r.status + (body ? ' — ' + body.trim() : ''));
   return body.trim();
@@ -376,7 +417,8 @@ $('go').onclick = async () => {
     // the one meant to be shared. The long link stays one click away below.
     setState('Shortening…');
     try {
-      const short = await shorten(longUrl);
+      const len = Number($('len').value);
+      const short = await shorten(longUrl, len);
       setMain(short, short);
       setState('');
       if (!password) {
