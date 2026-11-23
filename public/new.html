@@ -62,7 +62,13 @@
 
   .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, .52fr); align-items: stretch; }
   .editor { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 16px 20px 20px; border-radius: 15px 0 0 15px; background: var(--editor); color: var(--editor-text); }
-  .editor > label { width: fit-content; padding: 0 0 12px; font-size: .875rem; font-weight: 650; }
+  .editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 12px; }
+  .editor-head > label { font-size: .875rem; font-weight: 650; }
+  .editor-head .button { min-height: 32px; padding: 4px 10px; border-color: var(--editor-edge); background: transparent; color: var(--editor-text); font-size: .8125rem; }
+  .editor-head .button:hover:not(:disabled) { background: #ffffff14; }
+  .file-state { align-self: start; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px dashed var(--editor-edge); border-radius: 8px; font: .875rem/1.5 var(--mono); color: var(--editor-text); }
+  .file-state-name { min-width: 0; overflow-wrap: anywhere; }
+  .file-state-meta { display: block; color: var(--editor-muted); font-size: .8125rem; }
   .editor-source { display: grid; grid-template-columns: calc(20px + var(--line-digits, 1) * 1ch) minmax(0, 1fr); border: 1px solid var(--editor-edge); border-radius: 8px; font: .9375rem/1.65 var(--mono); }
   .line-numbers { position: relative; overflow: hidden; border-right: 1px solid var(--editor-edge); color: var(--editor-muted); text-align: right; user-select: none; }
   .line-numbers pre { position: absolute; inset: 0 8px auto 0; margin: 0; padding-top: 14px; font: inherit; white-space: pre; }
@@ -109,12 +115,20 @@
 <main>
   <header class="masthead">
     <h1>New paste</h1>
-    <p>Share text or code using an encrypted link.</p>
+    <p>Share text, code, or a small file using an encrypted link.</p>
   </header>
 
   <div class="workbench panel">
     <div class="editor">
-      <label for="t">Paste content</label>
+      <div class="editor-head">
+        <label for="t">Paste content</label>
+        <input id="file" type="file" hidden>
+        <button id="pick" class="button secondary" type="button">Attach file</button>
+      </div>
+      <p id="fileState" class="file-state" hidden>
+        <span class="file-state-name"><span id="fileName"></span><span id="fileMeta" class="file-state-meta"></span></span>
+        <button id="dropFile" class="button secondary" type="button">Remove</button>
+      </p>
       <div class="editor-source">
         <div class="line-numbers" aria-hidden="true"><pre id="editorNumbers">1</pre></div>
         <textarea id="t" wrap="off" spellcheck="false" placeholder="Paste text, commands, or a script"></textarea>
@@ -183,6 +197,8 @@
 
 const $ = (id) => document.getElementById(id);
 const ITERATIONS = 200000;
+const MAX_FILE_BYTES = 256 * 1024;
+const FILE_MARKER = 'KHEPRI-FILE 1';
 const SHORTENER = '__SHORTENER__';
 
 const editor = $('t');
@@ -215,6 +231,68 @@ function b64u(buf) {
   }
   return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+
+function bytesToB64(bytes) {
+  let raw = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    raw += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(raw);
+}
+
+function formatBytes(n) {
+  return n < 1024 ? n + ' B' : (n / 1024).toFixed(n < 10 * 1024 ? 1 : 0) + ' KB';
+}
+
+async function filePayload(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const meta = b64u(new TextEncoder().encode(JSON.stringify({
+    name: file.name, type: file.type || '', size: bytes.length,
+  })));
+  return FILE_MARKER + '\n' + meta + '\n' + bytesToB64(bytes);
+}
+
+let attached = null;
+
+// A file travels as base64 text inside the same encrypted paste, so the
+// server, the ciphertext format and the shortener all stay unchanged.
+function setAttached(file) {
+  attached = file;
+  $('fileState').hidden = !file;
+  $('file').value = '';
+  document.querySelector('.editor-source').hidden = Boolean(file);
+  editor.disabled = Boolean(file);
+  if (!file) return;
+  $('fileName').textContent = file.name;
+  $('fileMeta').textContent = formatBytes(file.size) + (file.type ? ' · ' + file.type : '');
+  $('createError').textContent = '';
+}
+
+function attachFile(file) {
+  if (!file) return;
+  if (file.size > MAX_FILE_BYTES) {
+    $('createError').textContent =
+      '“' + file.name + '” is ' + formatBytes(file.size) + '; the limit is ' + formatBytes(MAX_FILE_BYTES) + '.';
+    $('file').value = '';
+    return;
+  }
+  setAttached(file);
+}
+
+$('pick').onclick = () => $('file').click();
+$('file').onchange = () => attachFile($('file').files[0]);
+$('dropFile').onclick = () => setAttached(null);
+
+const editorBox = document.querySelector('.editor');
+editorBox.addEventListener('dragover', (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault();
+});
+editorBox.addEventListener('drop', (e) => {
+  const file = e.dataTransfer && e.dataTransfer.files[0];
+  if (!file) return;
+  e.preventDefault();
+  attachFile(file);
+});
 
 async function deriveKey(password, salt, keyBytes) {
   const passwordBytes = new TextEncoder().encode(password);
@@ -290,8 +368,8 @@ async function shorten(longUrl, len) {
 
 $('go').onclick = async () => {
   const btn = $('go');
-  const text = $('t').value;
-  if (!text) { $('t').focus(); return; }
+  const file = attached;
+  if (!file && !$('t').value) { $('t').focus(); return; }
 
   btn.disabled = true;
   btn.setAttribute('aria-busy', 'true');
@@ -313,8 +391,9 @@ $('go').onclick = async () => {
 
     const key = await deriveKey(password, salt, keyBytes);
     const enc = new TextEncoder();
+    const plaintext = file ? await filePayload(file) : $('t').value;
     const ct = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv, additionalData: enc.encode(id) }, key, enc.encode(text));
+      { name: 'AES-GCM', iv, additionalData: enc.encode(id) }, key, enc.encode(plaintext));
 
     // The reader decrypts this token before the server releases the body.
     const proof = crypto.getRandomValues(new Uint8Array(32));
