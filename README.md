@@ -89,9 +89,22 @@ Both processes bind `127.0.0.1`. The Linux Docker deployment uses host networkin
 
 Both services keep state in memory; restart drops all pastes and short links. A short link does not consume the paste and can redirect until its own TTL (24 hours by default), even if the paste is already gone.
 
+## Small files
+
+The create form can attach one file up to 256 KB. The browser reads the bytes, base64-encodes them, and puts them in the same encrypted text paste the service already stores:
+
+```
+KHEPRI-FILE 1
+<base64url JSON {name, type, size}>
+<base64 bytes>
+```
+
+The reading page recognises the marker, rebuilds the file in the browser and offers it as a download; a file that does not carry the marker still renders as text, and an older reader just shows the marker plus base64. The server is untouched: it stores ciphertext only, and a file costs roughly 1.78× its size in the create request (base64 of the payload, then base64url of the ciphertext). For anything above 256 KB, use an actual file transfer.
+
 ## Limits
 
 - Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 1024 and accounts for up to 16 MiB of payload and metadata.
+- The create form caps an attached file at 256 KB, which encodes to roughly 466 KB of JSON — comfortably inside the 1 MiB request limit.
 - Core validates `iterations` between 100000 and 1000000; the client always sends 200000.
 - Base62 codes default to 4 characters. Creation API accepts lengths 3–12 and caps stored mappings at 4096.
 - Rate limits: core 60 req/min/IP; shortener 120 req/min/IP. Rate-limit tables expire old entries and are bounded.
@@ -99,7 +112,7 @@ Both services keep state in memory; restart drops all pastes and short links. A 
 ## What is deliberately absent
 
 - No account system. Anyone who can reach the core can create a paste.
-- No file upload. See `base64` above.
+- No binary upload transport: no multipart endpoint, no streaming, no object storage. Small files ride inside the base64 text body described above.
 - No formatting, syntax highlighting or markdown. The reading page is a `<pre>`, which preserves every byte.
 - No language selector. Single-user tool.
 

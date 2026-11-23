@@ -73,6 +73,9 @@
   .readout-source { display: flex; max-height: 65vh; overflow: auto; background: var(--editor); color: var(--editor-text); color-scheme: dark; font: .9375rem/1.65 var(--mono); }
   .readout-source pre { margin: 0; padding: 16px; font: inherit; white-space: pre; tab-size: 4; }
   .readout-source .line-numbers { position: sticky; left: 0; flex: none; padding-inline: 10px; border-right: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-muted); text-align: right; user-select: none; }
+  .file-card { display: grid; gap: 6px; padding: 20px; }
+  .file-card p { margin: 0; }
+  .file-name { font: 650 1.0625rem/1.4 var(--mono); overflow-wrap: anywhere; }
   @media (max-width: 40rem) { .unlock { padding: 16px; } }
 </style>
 </head>
@@ -103,6 +106,7 @@
 // The key is in the fragment (never sent to the server).
 const id = location.search.slice(1);
 const frag = location.hash.slice(1);
+const FILE_MARKER = 'KHEPRI-FILE 1';
 
 const $ = (x) => document.getElementById(x);
 
@@ -112,6 +116,62 @@ function b64uToBytes(s) {
   const a = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
   return a;
+}
+
+// File body: marker line, base64url JSON metadata line, base64 payload.
+function parseFilePayload(text) {
+  const head = FILE_MARKER + '\n';
+  if (!text.startsWith(head)) return null;
+  const metaEnd = text.indexOf('\n', head.length);
+  if (metaEnd < 0) return null;
+  let meta;
+  try {
+    meta = JSON.parse(new TextDecoder().decode(b64uToBytes(text.slice(head.length, metaEnd))));
+  } catch { return null; }
+  let bytes;
+  try {
+    bytes = b64uToBytes(text.slice(metaEnd + 1).replace(/\s+/g, ''));
+  } catch { return null; }
+  return {
+    name: typeof meta.name === 'string' && meta.name ? meta.name : 'download',
+    type: typeof meta.type === 'string' ? meta.type : '',
+    size: bytes.length,
+    bytes,
+  };
+}
+
+function formatBytes(n) {
+  return n < 1024 ? n + ' B' : (n / 1024).toFixed(n < 10 * 1024 ? 1 : 0) + ' KB';
+}
+
+function fileReadout(file) {
+  const url = URL.createObjectURL(new Blob([file.bytes], { type: file.type || 'application/octet-stream' }));
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Decrypted file';
+  const save = document.createElement('a');
+  save.className = 'button';
+  save.href = url;
+  save.download = file.name;
+  save.textContent = 'Download';
+  const bar = document.createElement('header');
+  bar.className = 'readout-bar';
+  bar.append(heading, save);
+
+  const name = document.createElement('p');
+  name.className = 'file-name';
+  name.textContent = file.name;
+  const meta = document.createElement('p');
+  meta.className = 'note';
+  meta.textContent = formatBytes(file.size) + (file.type ? ' · ' + file.type : '');
+  const card = document.createElement('div');
+  card.className = 'file-card';
+  card.append(name, meta);
+
+  const section = document.createElement('section');
+  section.className = 'panel readout';
+  section.append(bar, card);
+  return section;
 }
 
 function show(text, cls) {
@@ -191,6 +251,12 @@ async function decrypt() {
       key, b64uToBytes(envelope.ct));
 
     const plaintext = new TextDecoder().decode(pt);
+
+    const file = parseFilePayload(plaintext);
+    if (file) {
+      $('body').replaceChildren(fileReadout(file));
+      return;
+    }
 
     const pre = document.createElement('pre');
     pre.textContent = plaintext;   // textContent: every newline survives
