@@ -337,35 +337,32 @@ describe('pages and assets', () => {
     assert.match(await (await c.get('/?0123456789abcdef')).text(), /Read paste/);
   });
 
-  test('the vendored encoder is served by its exact path only', async () => {
+  test('assets live under hashed paths and nothing else is reachable', async () => {
     const c = client(server, '10.7.0.3');
-    const asset = await c.get('/vendor/qrcode.js');
-    assert.equal(asset.status, 200);
-    assert.match(asset.headers.get('content-type'), /javascript/);
-    assert.ok((await asset.text()).length > 1000);
+    const html = await (await c.get('/')).text();
+    const appMatch = html.match(/<script src="(\/app\.[0-9a-f]{10}\.js)"><\/script>/);
+    assert.ok(appMatch, 'hashed create script in the page');
+    const appPath = appMatch[1];
 
-    assert.equal(await status(c.get('/vendor/LICENSE')), 404);
-    assert.equal(await status(c.get('/vendor/%2e%2e/core.js')), 404);
-    assert.equal(await status(c.get('/../core.js')), 404);
-  });
-
-  test('page scripts are files, and the create one carries the ceiling', async () => {
-    const c = client(server, '10.7.0.4');
-    const app = await c.get('/app.js');
+    const app = await c.get(appPath);
     assert.equal(app.status, 200);
     assert.match(app.headers.get('content-type'), /javascript/);
-    assert.equal(app.headers.get('cache-control'), 'no-store');
+    assert.match(app.headers.get('cache-control'), /immutable/);
+
     const appSource = await app.text();
     assert.ok(!appSource.includes('__MAX_TTL_S__'));
     assert.ok(!appSource.includes('__SHORTENER__'));
     assert.match(appSource, /const MAX_TTL_S = Number\('86400'\)/);
+    assert.match(appSource, /el\.src = '\/vendor\/qrcode\.[0-9a-f]{10}\.js'/, 'QR path injected');
 
-    const view = await c.get('/view.js');
-    assert.equal(view.status, 200);
-    assert.match(await view.text(), /KHEPRI-FILE 1/);
+    const viewHtml = await (await c.get('/?abc')).text();
+    const viewMatch = viewHtml.match(/<script src="(\/view\.[0-9a-f]{10}\.js)"><\/script>/);
+    assert.ok(viewMatch, 'hashed read script in the page');
+    assert.match(await (await c.get(viewMatch[1])).text(), /KHEPRI-FILE 1/);
 
-    const html = await (await c.get('/')).text();
-    assert.match(html, /<script src="\/app\.js"><\/script>/);
+    for (const stale of ['/app.js', '/view.js', '/vendor/qrcode.js', '/vendor/LICENSE', '/vendor/%2e%2e/core.js']) {
+      assert.equal(await status(c.get(stale)), 404, stale);
+    }
     assert.ok(!/<script>\s*'use strict'/.test(html), 'no inline script remains');
   });
 });

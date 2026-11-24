@@ -148,9 +148,43 @@ function isDiskFull(err) {
   return typeof err?.message === 'string' && /database or disk is full/i.test(err.message);
 }
 
+// Page scripts are served from a hashed path under an immutable cache, so a
+// repeat visit downloads only the no-store HTML. The hash is taken over the
+// rendered bytes, which is also how a deployment invalidates the old copy.
+function hashedName(file, body) {
+  const digest = createHash('sha256').update(body).digest('hex').slice(0, 10);
+  return file.replace(/\.js$/, '') + '.' + digest + '.js';
+}
+
+const ASSETS = new Map();
+const SCRIPT_PATHS = {};
+
+function loadScript(file, { render, cache }) {
+  const source = fs.readFileSync(path.join(__dirname, 'public', file), 'utf8');
+  const body = render ? render(source) : source;
+  const assetPath = '/' + hashedName(file, body);
+  ASSETS.set(assetPath, { body, cache });
+  return assetPath;
+}
+
+function renderAppScript(src) {
+  return src
+    .replaceAll('__SHORTENER__', SHORTENER)
+    .replaceAll('__MAX_TTL_S__', String(MAX_TTL_S))
+    .replaceAll('__QR_PATH__', qrPath);
+}
+
+const QR_PATH = loadScript('vendor/qrcode.js', { cache: 'public, max-age=31536000, immutable' });
+const qrPath = QR_PATH;
+SCRIPT_PATHS['app.js'] = loadScript('app.js', { render: renderAppScript, cache: 'public, max-age=31536000, immutable' });
+SCRIPT_PATHS['view.js'] = loadScript('view.js', { cache: 'public, max-age=31536000, immutable' });
+
 function serveHtml(res, file) {
-  fs.readFile(path.join(__dirname, 'public', file), 'utf8', (err, body) => {
+  fs.readFile(path.join(__dirname, 'public', file), 'utf8', (err, source) => {
     if (err) return send(res, 404, { error: 'not found' });
+    const body = source
+      .replace('src="/app.js"', 'src="' + SCRIPT_PATHS['app.js'] + '"')
+      .replace('src="/view.js"', 'src="' + SCRIPT_PATHS['view.js'] + '"');
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -161,32 +195,16 @@ function serveHtml(res, file) {
   });
 }
 
-// Each asset is looked up by an exact path, so no request can reach the rest
-// of the tree. The page scripts are files rather than inline blocks so the edge
-// can serve them under `script-src 'self'` with no inline allowance; they are
-// not cached because one of them carries deployment configuration.
-const ASSETS = new Map([
-  ['/vendor/qrcode.js', { file: 'vendor/qrcode.js', cache: 'public, max-age=86400' }],
-  ['/app.js', { file: 'app.js', cache: 'no-store', render: renderAppScript }],
-  ['/view.js', { file: 'view.js', cache: 'no-store' }],
-]);
-
-function renderAppScript(src) {
-  return src.replace('__SHORTENER__', SHORTENER).replace('__MAX_TTL_S__', String(MAX_TTL_S));
-}
-
+// Assets are only reachable by the exact hashed paths built above, so no
+// request can address the rest of the tree.
 function serveAsset(res, asset) {
-  fs.readFile(path.join(__dirname, 'public', asset.file), 'utf8', (err, src) => {
-    if (err) return send(res, 404, { error: 'not found' });
-    const body = asset.render ? asset.render(src) : src;
-    res.writeHead(200, {
-      'Content-Type': 'application/javascript; charset=utf-8',
-      'Content-Length': Buffer.byteLength(body),
-      'Cache-Control': asset.cache,
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(body);
+  res.writeHead(200, {
+    'Content-Type': 'application/javascript; charset=utf-8',
+    'Content-Length': Buffer.byteLength(asset.body),
+    'Cache-Control': asset.cache,
+    'X-Content-Type-Options': 'nosniff',
   });
+  res.end(asset.body);
 }
 
 const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
