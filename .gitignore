@@ -6,3 +6,8 @@ node_modules/
 *.db
 *.db-wal
 *.db-shm
+
+# Unused icon drafts
+/design/icon.svg
+/design/icon-independent.svg
+/design/icon-options/
