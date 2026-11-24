@@ -92,11 +92,12 @@ if (!columns.includes('tag')) db.exec("ALTER TABLE links ADD COLUMN tag TEXT NOT
 const legacy = db.prepare("SELECT count(*) AS c FROM links WHERE iv = ''").get().c;
 if (legacy > 0) {
   db.prepare("DELETE FROM links WHERE iv = ''").run();
-  db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   db.exec('VACUUM');
-  db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   console.log(`Dropped ${legacy} short link(s) stored before the database was encrypted`);
 }
+// The write-ahead log keeps the pages of rows that are already gone, so it is
+// truncated at startup: a deleted link leaves nothing readable behind.
+db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
 try { fs.chmodSync(DB_PATH, 0o600); } catch { /* best effort */ }
 
 const qGet = db.prepare('SELECT target, iv, tag, expires FROM links WHERE code = ?');
