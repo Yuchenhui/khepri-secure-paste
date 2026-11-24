@@ -130,9 +130,10 @@ The code encodes whichever link is displayed: with the shortener enabled that is
 
 - `limit_req` 120 req/min per IP with a burst of 40 (20 on `/s/`) and `limit_conn` 16 concurrent connections (8 on `/s/`), both answering `429`. This caps bursts before Node sees them and stops a slow reader from parking many sockets.
 - 10-second header, body and send timeouts. Nothing here streams or long-polls.
-- `Strict-Transport-Security` (one year), `X-Frame-Options: DENY`, `frame-ancestors 'none'`, and a `Content-Security-Policy` of `default-src 'none'` with `script-src 'self'`, `style-src 'unsafe-inline'`, `connect-src 'self'`. Each page loads one same-origin script (`/app.js`, `/view.js`) and one inline stylesheet, so no inline script is allowed at all. Styles stay inline because they are static and carry no data.
+- `Strict-Transport-Security` (one year), `X-Frame-Options: DENY`, `frame-ancestors 'none'`, and a `Content-Security-Policy` of `default-src 'none'` with `script-src 'self'`, `style-src 'unsafe-inline'`, `connect-src 'self'`. Each page loads one same-origin script and one inline stylesheet, so no inline script is allowed at all. Styles stay inline because they are static and carry no data.
 - `X-Robots-Tag: noindex, nofollow, noarchive` and `Cross-Origin-Resource-Policy: same-origin`: a paste URL stays out of search indexes and cannot be embedded by another site, so a link cannot be probed from a third-party page.
-- TLS session tickets off and a shared session cache, so a captured session cannot be resumed after a key leak.
+- TLS session tickets off and a shared session cache, so a captured session cannot be resumed after a key leak. HTTP/2 is on, so the page and its script share one connection.
+- Caching and compression: page scripts are served from a content-hashed path (`/app.<hash>.js`, `/view.<hash>.js`, `/vendor/qrcode.<hash>.js`) with `Cache-Control: immutable`, so a repeat visit downloads only the no-store HTML. nginx gzips the HTML and scripts (12.6 KB page to 3.9 KB, 15.6 KB script to 5.5 KB) and has gzip off under `/api/`, where the body is base64 ciphertext and compressing it only burns CPU.
 - `405` for anything other than `GET`, `HEAD`, `POST` or `OPTIONS`.
 
 ## Abuse model

@@ -278,7 +278,7 @@ function loadQrEncoder() {
   if (!qrLoading) {
     qrLoading = new Promise((resolve, reject) => {
       const el = document.createElement('script');
-      el.src = '/vendor/qrcode.js';
+      el.src = '__QR_PATH__';
       el.onload = () => resolve();
       el.onerror = () => { qrLoading = null; reject(new Error('QR encoder failed to load')); };
       document.head.append(el);
