@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Locked Paste">
+  <rect width="64" height="64" rx="14" fill="#214fb8"/>
+  <path d="M18 11h18l10 10v28a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V15a4 4 0 0 1 4-4Z" fill="#fbf4ec"/>
+  <path d="M36 11v7a3 3 0 0 0 3 3h7Z" fill="#dfa876"/>
+  <path d="M22 23h8m-8 7h8m-8 7h4" fill="none" stroke="#214fb8" stroke-width="3" stroke-linecap="round"/>
+  <path d="M35 37v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#182435" stroke-width="4"/>
+  <rect x="31" y="36" width="20" height="17" rx="4" fill="#182435"/>
+  <path d="M41 42v5" stroke="#fbf4ec" stroke-width="3" stroke-linecap="round"/>
+</svg>

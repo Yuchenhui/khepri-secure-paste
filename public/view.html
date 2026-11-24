@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Read paste</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   :root {
     color-scheme: light;
@@ -74,7 +75,18 @@
   .short-lookup form::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: -3px; width: 8px; height: 8px; transform: translateY(-50%) rotate(45deg); border: 1px solid var(--line); border-width: 1px 1px 0 0; background: var(--paper); pointer-events: none; }
   .short-lookup .input { min-width: 0; padding-block: 10px 6px; font-family: "Cascadia Mono", Menlo, "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric: slashed-zero; }
   #body:not(:empty) { margin-top: 24px; }
-  #body > .err { font-size: .875rem; }
+  .read-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(28rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 10px; }
+  .read-feedback:has(#readError:not(:empty)) { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: 0 8px 24px -8px #18243566; }
+  #readError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.4; overflow-wrap: anywhere; }
+  #readError:empty ~ * { display: none; }
+  .error-countdown { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: no-preference) {
+    .read-feedback:has(#readError:not(:empty)) { animation: feedback-in 180ms ease-out; }
+    @keyframes feedback-in { from { opacity: 0; transform: translateY(-8px); } }
+  }
+  .dismiss-error { display: grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+  .dismiss-error:hover { background: var(--tint); color: var(--ink); }
+  .dismiss-error svg { pointer-events: none; }
   .page-footer { display: flex; justify-content: flex-end; margin-top: 12px; padding-inline: clamp(12px, 2vw, 20px); }
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
@@ -126,6 +138,13 @@
       <input id="pw" type="password" class="input" placeholder="Leave blank if none was set" autocomplete="off">
     </div>
     <button id="go" class="button" type="button">Decrypt</button>
+  </div>
+  <div class="read-feedback">
+    <p id="readError" class="note err" role="alert"></p>
+    <span id="readErrorCountdown" class="note error-countdown" aria-hidden="true"></span>
+    <button id="dismissReadError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
   </div>
   <div id="body" aria-live="polite"></div>
   <footer class="page-footer note">
