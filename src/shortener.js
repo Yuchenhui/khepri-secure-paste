@@ -86,10 +86,15 @@ const columns = db.prepare('PRAGMA table_info(links)').all().map((c) => c.name);
 if (!columns.includes('iv')) db.exec("ALTER TABLE links ADD COLUMN iv TEXT NOT NULL DEFAULT ''");
 if (!columns.includes('tag')) db.exec("ALTER TABLE links ADD COLUMN tag TEXT NOT NULL DEFAULT ''");
 // Rows written before the database was encrypted cannot be read back, so they
-// are dropped rather than left to fail every lookup.
+// are dropped rather than left to fail every lookup. Deleting a row does not
+// erase its bytes: the file is rebuilt and the write-ahead log truncated, or
+// the old plaintext would stay readable on disk.
 const legacy = db.prepare("SELECT count(*) AS c FROM links WHERE iv = ''").get().c;
 if (legacy > 0) {
   db.prepare("DELETE FROM links WHERE iv = ''").run();
+  db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  db.exec('VACUUM');
+  db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   console.log(`Dropped ${legacy} short link(s) stored before the database was encrypted`);
 }
 try { fs.chmodSync(DB_PATH, 0o600); } catch { /* best effort */ }
