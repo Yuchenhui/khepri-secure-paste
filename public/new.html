@@ -84,6 +84,10 @@
   .checks label { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: .875rem; cursor: pointer; }
   .checks input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
   .settings .button { justify-self: start; }
+  /* A full-width control parks a select's arrow at the far edge, a long way
+     from a short value like "7 days". One cap for the whole settings column so
+     the password field and both dropdowns end on the same line. */
+  .settings .input { max-width: 12.5rem; }
   .page-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; }
   .privacy { flex: 1 1 24rem; max-width: 70ch; }
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -6px -6px -6px 0; border-radius: 6px; color: var(--muted); }
