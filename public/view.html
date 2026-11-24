@@ -63,17 +63,24 @@
   .reader { max-width: 40rem; }
   .unlock { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 20px; }
   .unlock .field { flex: 1 1 14rem; }
-  #body:not(:empty) { margin-top: 20px; }
+  #body:not(:empty) { margin-top: 24px; }
   #body > .err { font-size: .875rem; }
   .page-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -6px -6px -6px 0; border-radius: 6px; color: var(--muted); }
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
   .source-link svg { width: 20px; height: 20px; fill: currentColor; }
   .readout { overflow: hidden; }
+  .readout-life { padding: 10px 14px 0; }
+  .readout-wrap { display: grid; }
+  .readout-controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .readout-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: .875rem; cursor: pointer; color: var(--ink); }
+  .readout-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
   .readout-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; }
   .readout-bar h2 { margin: 0; font-size: .875rem; }
   .readout-source { display: flex; max-height: 65vh; overflow: auto; background: var(--editor); color: var(--editor-text); color-scheme: dark; font: .9375rem/1.65 var(--mono); }
   .readout-source pre { margin: 0; padding: 16px; font: inherit; white-space: pre; tab-size: 4; }
+  .readout-source.wrap pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
+  .readout-source.wrap .line-numbers { position: static; }
   .readout-source .line-numbers { position: sticky; left: 0; flex: none; padding-inline: 10px; border-right: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-muted); text-align: right; user-select: none; }
   .file-card { display: grid; gap: 6px; padding: 20px; }
   .file-card p { margin: 0; }

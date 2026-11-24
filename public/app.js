@@ -219,9 +219,24 @@ async function deriveKey(password, salt, keyBytes) {
     km, { name:'AES-GCM', length:256 }, false, ['encrypt']);
 }
 
+// Digits in a different colour so y/O, 0/O and 1/l stay readable when the code
+// is read off the screen or typed by hand.
+function colorize(text) {
+  const span = document.createElement('span');
+  for (const ch of text) {
+    if (/[0-9]/.test(ch)) {
+      const digit = document.createElement('span');
+      digit.className = 'digit';
+      digit.textContent = ch;
+      span.append(digit);
+    } else span.append(ch);
+  }
+  return span;
+}
+
 function setMain(href, code) {
   $('openUrl').href = href;
-  $('mainCode').textContent = code || href;
+  $('mainCode').replaceChildren(colorize(code || href));
   $('mainCode').classList.toggle('long', !code);
   $('shortOrigin').textContent = code ? href.slice(0, -code.length) : '';
   $('shortOrigin').hidden = !code;
