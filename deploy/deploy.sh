@@ -33,7 +33,9 @@ chown -R root:root "$APP_DIR"
 chmod -R go-w "$APP_DIR"
 
 # ---- 2. image ------------------------------------------------------------
-docker build -q -t "$IMAGE" .
+# Host networking for the build: buildkit's bridge path to the Alpine mirrors
+# stalls on this host, which leaves apk hanging inside the build.
+docker build --network host -q -t "$IMAGE" .
 
 # ---- 3. containers -------------------------------------------------------
 # --read-only: nothing is written outside the paste volume, which holds the
