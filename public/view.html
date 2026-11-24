@@ -44,10 +44,10 @@
   :where(button, input, select, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   a { color: var(--accent); text-underline-offset: .18em; }
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--accent); color: var(--paper); font-size: .875rem; font-weight: 650; text-decoration: none; white-space: nowrap; cursor: pointer; }
-  .button:hover:not(:disabled) { background: var(--accent-hover); }
+  .button:hover:not([aria-busy="true"]) { background: var(--accent-hover); }
   .button.secondary { border-color: var(--control); background: var(--paper); color: var(--ink); }
   .button.secondary:hover:not(:disabled) { background: var(--tint); }
-  .button:disabled { opacity: .75; cursor: wait; }
+  .button[aria-busy="true"] { opacity: .75; cursor: wait; }
   .bp-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(1turn); } }
   .field { display: grid; gap: 6px; min-width: 0; }
@@ -77,9 +77,10 @@
   #body:not(:empty) { margin-top: 24px; }
   .read-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(28rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 10px; }
   .read-feedback:has(#readError:not(:empty)) { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: 0 8px 24px -8px #18243566; }
-  #readError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.4; overflow-wrap: anywhere; }
+  .read-feedback:has(#readError:not(:empty))::before { content: ""; flex: 0 0 calc(28px + 1.125rem + 10px); }
+  #readError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.4; overflow-wrap: anywhere; text-align: center; }
   #readError:empty ~ * { display: none; }
-  .error-countdown { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .error-countdown { flex: 0 0 1.125rem; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
   @media (prefers-reduced-motion: no-preference) {
     .read-feedback:has(#readError:not(:empty)) { animation: feedback-in 180ms ease-out; }
     @keyframes feedback-in { from { opacity: 0; transform: translateY(-8px); } }

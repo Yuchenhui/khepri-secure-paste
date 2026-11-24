@@ -197,9 +197,12 @@ async function decrypt() {
   }
 
   btn.disabled = true;
-  btn.setAttribute('aria-busy', 'true');
-  btn.textContent = 'Decrypting';
-  btn.prepend(makeSpinner());
+  // Fast requests keep the normal button appearance without allowing another submission.
+  const busyTimer = setTimeout(() => {
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = 'Decrypting';
+    btn.prepend(makeSpinner());
+  }, 250);
 
   try {
     let d;
@@ -327,9 +330,12 @@ async function decrypt() {
   } catch {
     setReadError('Wrong password or corrupted content.');
   } finally {
+    clearTimeout(busyTimer);
     btn.disabled = false;
-    btn.removeAttribute('aria-busy');
-    btn.textContent = 'Decrypt';
+    if (btn.hasAttribute('aria-busy')) {
+      btn.removeAttribute('aria-busy');
+      btn.textContent = 'Decrypt';
+    }
   }
 }
 
