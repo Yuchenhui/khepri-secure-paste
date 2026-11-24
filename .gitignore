@@ -3,3 +3,6 @@ node_modules/
 *.key
 *.pem
 *.log
+*.db
+*.db-wal
+*.db-shm

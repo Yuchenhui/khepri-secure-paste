@@ -4,14 +4,28 @@ const http = require('node:http');
 const { createHash, timingSafeEqual } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJson } = require('./http-util');
 
 const PORT = Number(process.env.PORT || 8080);
 const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
 const SHORTENER = process.env.SHORTENER_URL ? configuredHttpBase(process.env.SHORTENER_URL, true) : '';
 const MAX_BODY = 1024 * 1024;
-const MAX_PASTES = 1024;
-const MAX_STORED_BYTES = 16 * MAX_BODY;
+const MAX_PASTES = Number(process.env.MAX_PASTES || 1024);
+if (!Number.isInteger(MAX_PASTES) || MAX_PASTES < 1) throw new Error('MAX_PASTES must be a positive integer');
+// Per client, so a single source cannot fill the store: two full-size pastes
+// worth of ciphertext, or 32 small ones, whichever runs out first.
+const MAX_IP_BYTES = 2 * MAX_BODY;
+const MAX_IP_PASTES = 32;
+// The env value is the ceiling: a client may ask for a shorter life, never a
+// longer one. TTL_HOURS also bounds the choices the create form renders.
+const MAX_TTL_S = Math.floor(TTL_MS / 1000);
+const MAX_READS = 20;
+// Ciphertext lives on disk, keyed by the same paste id; the SQLite page cache
+// is the only memory tier, so capacity no longer costs resident memory.
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'paste.db');
+const MAX_DISK_MB = Number(process.env.MAX_DISK_MB || 5120);
+if (!Number.isInteger(MAX_DISK_MB) || MAX_DISK_MB < 1) throw new Error('MAX_DISK_MB must be a positive integer');
 const PASTE_ID = /^[0-9a-f]{16}$/;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const IV = /^[A-Za-z0-9_-]{16}$/;
@@ -19,26 +33,156 @@ const SALT = /^[A-Za-z0-9_-]{11}$/;
 const CLAIM = /^[A-Za-z0-9_-]{64}$/;
 const rateOk = createRateLimit(60);
 if (!Number.isSafeInteger(TTL_MS) || TTL_MS <= 0) throw new Error('TTL_HOURS must be positive');
-const store = new Map();
-let storedBytes = 0;
+const stats = { creates: 0, reads: 0, rejected: 0, evicted: 0, expired: 0 };
 
-function forget(id, entry) {
-  store.delete(id);
-  storedBytes -= entry.size;
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+const db = new DatabaseSync(DB_PATH);
+db.exec('PRAGMA journal_mode = WAL');
+db.exec('PRAGMA synchronous = NORMAL');
+db.exec('PRAGMA auto_vacuum = INCREMENTAL');
+db.exec('PRAGMA cache_size = -32768');
+db.exec('PRAGMA journal_size_limit = 67108864');
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pastes (
+    id TEXT PRIMARY KEY,
+    ct TEXT NOT NULL,
+    iv TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    iterations INTEGER NOT NULL,
+    claim TEXT NOT NULL,
+    claimIv TEXT NOT NULL,
+    claimHash BLOB NOT NULL,
+    pinIp INTEGER NOT NULL,
+    pinnedTo TEXT,
+    reads INTEGER NOT NULL,
+    owner TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    created INTEGER NOT NULL,
+    expires INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS pastes_created ON pastes(created);
+  CREATE INDEX IF NOT EXISTS pastes_expires ON pastes(expires);
+  CREATE TABLE IF NOT EXISTS owners (
+    owner TEXT PRIMARY KEY,
+    bytes INTEGER NOT NULL,
+    count INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS store (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    bytes INTEGER NOT NULL,
+    rows INTEGER NOT NULL
+  );
+  INSERT OR IGNORE INTO store (id, bytes, rows) VALUES (1, 0, 0);
+`);
+
+// Hard ceiling on the file. SQLite refuses the write once the page count would
+// pass it, which turns "disk full" into a 507 for one client, not a broken db.
+{
+  const pageSize = db.prepare('PRAGMA page_size').get().page_size;
+  const maxPages = Math.max(16, Math.floor((MAX_DISK_MB * 1024 * 1024) / pageSize));
+  db.exec(`PRAGMA max_page_count = ${maxPages}`);
+}
+
+const qGet = db.prepare('SELECT * FROM pastes WHERE id = ?');
+const qHas = db.prepare('SELECT 1 AS hit FROM pastes WHERE id = ?');
+const qInsert = db.prepare(`
+  INSERT INTO pastes (id, ct, iv, salt, iterations, claim, claimIv, claimHash, pinIp, pinnedTo, reads, owner, size, created, expires)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+`);
+const qDelete = db.prepare('DELETE FROM pastes WHERE id = ?');
+const qSetReads = db.prepare('UPDATE pastes SET reads = ? WHERE id = ?');
+const qSetPinned = db.prepare('UPDATE pastes SET pinnedTo = ? WHERE id = ?');
+const qOwner = db.prepare('SELECT bytes, count FROM owners WHERE owner = ?');
+const qOwnerAdd = db.prepare(`
+  INSERT INTO owners (owner, bytes, count) VALUES (?, ?, 1)
+  ON CONFLICT(owner) DO UPDATE SET bytes = bytes + excluded.bytes, count = count + 1
+`);
+const qOwnerSubtract = db.prepare('UPDATE owners SET bytes = bytes - ?, count = count - 1 WHERE owner = ?');
+const qOwnerPrune = db.prepare('DELETE FROM owners WHERE owner = ? AND count <= 0');
+// Totals live in one row: summing the table would read every ciphertext page on
+// each create and make writes slower as the store grows.
+const qTotals = db.prepare('SELECT bytes, rows FROM store WHERE id = 1');
+const qAddTotals = db.prepare('UPDATE store SET bytes = bytes + ?, rows = rows + 1 WHERE id = 1');
+const qSubTotals = db.prepare('UPDATE store SET bytes = bytes - ?, rows = rows - 1 WHERE id = 1');
+const qOldest = db.prepare('SELECT id FROM pastes ORDER BY created LIMIT ?');
+const qExpired = db.prepare('SELECT id FROM pastes WHERE expires <= ?');
+
+// One cheap reconcile at boot so a database written by an older build (or a
+// half-finished manual edit) cannot leave the cached totals wrong forever.
+{
+  const cached = qTotals.get().rows;
+  const actual = db.prepare('SELECT count(*) AS c FROM pastes').get().c;
+  if (cached !== actual) {
+    db.exec('UPDATE store SET rows = (SELECT count(*) FROM pastes), bytes = (SELECT coalesce(sum(size), 0) FROM pastes) WHERE id = 1');
+  }
 }
 
 function encoded(value, pattern) {
   return typeof value === 'string' && pattern.test(value);
 }
 
+function usageOf(owner) {
+  const row = qOwner.get(owner);
+  return row ? { bytes: row.bytes, count: row.count } : { bytes: 0, count: 0 };
+}
+
+// One delete path for reads, expiry and eviction: the row and the per-owner
+// accounting always move together.
+function dropPaste(id) {
+  const row = qGet.get(id);
+  if (!row) return false;
+  qDelete.run(id);
+  qSubTotals.run(row.size);
+  qOwnerSubtract.run(row.size, row.owner);
+  qOwnerPrune.run(row.owner);
+  return true;
+}
+
+function evictOldest(limit) {
+  let evicted = 0;
+  for (const row of qOldest.all(limit)) if (dropPaste(row.id)) evicted += 1;
+  return evicted;
+}
+
+function isDiskFull(err) {
+  return typeof err?.message === 'string' && /database or disk is full/i.test(err.message);
+}
+
 function serveHtml(res, file) {
-  fs.readFile(path.join(__dirname, 'public', file), 'utf8', (err, src) => {
+  fs.readFile(path.join(__dirname, 'public', file), 'utf8', (err, body) => {
     if (err) return send(res, 404, { error: 'not found' });
-    const body = file === 'new.html' ? src.replace('__SHORTENER__', SHORTENER) : src;
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(body);
+  });
+}
+
+// Each asset is looked up by an exact path, so no request can reach the rest
+// of the tree. The page scripts are files rather than inline blocks so the edge
+// can serve them under `script-src 'self'` with no inline allowance; they are
+// not cached because one of them carries deployment configuration.
+const ASSETS = new Map([
+  ['/vendor/qrcode.js', { file: 'vendor/qrcode.js', cache: 'public, max-age=86400' }],
+  ['/app.js', { file: 'app.js', cache: 'no-store', render: renderAppScript }],
+  ['/view.js', { file: 'view.js', cache: 'no-store' }],
+]);
+
+function renderAppScript(src) {
+  return src.replace('__SHORTENER__', SHORTENER).replace('__MAX_TTL_S__', String(MAX_TTL_S));
+}
+
+function serveAsset(res, asset) {
+  fs.readFile(path.join(__dirname, 'public', asset.file), 'utf8', (err, src) => {
+    if (err) return send(res, 404, { error: 'not found' });
+    const body = asset.render ? asset.render(src) : src;
+    res.writeHead(200, {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Content-Length': Buffer.byteLength(body),
+      'Cache-Control': asset.cache,
       'X-Content-Type-Options': 'nosniff',
     });
     res.end(body);
@@ -56,10 +200,12 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   if (!ip) return send(res, 400, { error: 'invalid client address' });
   if (!rateOk(ip)) return send(res, 429, { error: 'rate limited' });
 
+  if (req.method === 'GET' && ASSETS.has(pathname)) return serveAsset(res, ASSETS.get(pathname));
+
   if (req.method === 'POST' && pathname === '/api/paste') {
     const data = await readJson(req, res, MAX_BODY);
     if (!data) return;
-    const { id, ct, iv, salt, iterations, burn, pinIp, claim, claimIv, claimHash } = data;
+    const { id, ct, iv, salt, iterations, burn, pinIp, claim, claimIv, claimHash, ttl, reads } = data;
     if (!encoded(id, PASTE_ID) || !encoded(iv, IV) || !encoded(salt, SALT) ||
         !encoded(claim, CLAIM) || !encoded(claimIv, IV) || claimIv === iv || !encoded(claimHash, TOKEN) ||
         typeof ct !== 'string' || ct.length < 23 || ct.length % 4 === 1 || !/^[A-Za-z0-9_-]+$/.test(ct) ||
@@ -67,53 +213,154 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
         typeof burn !== 'boolean' || typeof pinIp !== 'boolean') {
       return send(res, 400, { error: 'invalid paste fields' });
     }
-    if (store.has(id)) return send(res, 409, { error: 'id collision' });
-    const size = ct.length + 256;
-    if (store.size >= MAX_PASTES || storedBytes + size > MAX_STORED_BYTES) {
-      return send(res, 503, { error: 'paste storage full' });
+    // Absent ttl/reads keeps the old behaviour: full env lifetime, and burn
+    // meaning a single read.
+    const ttlSeconds = ttl === undefined ? MAX_TTL_S : ttl;
+    const readLimit = reads === undefined ? (burn ? 1 : 0) : reads;
+    if (!Number.isInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > MAX_TTL_S) {
+      return send(res, 400, { error: 'invalid expiry' });
     }
-    store.set(id, {
-      ct, iv, salt, iterations, burn, pinIp, claim, claimIv,
-      claimHash: Buffer.from(claimHash, 'base64url'), size, expires: Date.now() + TTL_MS,
-    });
-    storedBytes += size;
+    if (!Number.isInteger(readLimit) || readLimit < 0 || readLimit > MAX_READS) {
+      return send(res, 400, { error: 'invalid read limit' });
+    }
+    if (qHas.get(id)) return send(res, 409, { error: 'id collision' });
+
+    const size = ct.length + 256;
+    const usage = usageOf(ip);
+    if (usage.count >= MAX_IP_PASTES || usage.bytes + size > MAX_IP_BYTES) {
+      stats.rejected += 1;
+      return send(res, 429, { error: 'paste quota exceeded' });
+    }
+
+    // A full store drops the oldest pastes instead of refusing every write, so
+    // one client's traffic cannot make the service read-only for everyone.
+    let evicted = 0;
+    for (;;) {
+      const { rows: count, bytes } = qTotals.get();
+      if (count < MAX_PASTES && bytes + size <= MAX_DISK_MB * 1024 * 1024) break;
+      const removed = evictOldest(Math.max(1, Math.ceil(count / 8)));
+      evicted += removed;
+      if (!removed) break;
+    }
+    stats.evicted += evicted;
+
+    const now = Date.now();
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      qInsert.run(id, ct, iv, salt, iterations, claim, claimIv, Buffer.from(claimHash, 'base64url'),
+        pinIp ? 1 : 0, readLimit, ip, size, now, now + ttlSeconds * 1000);
+      qOwnerAdd.run(ip, size);
+      qAddTotals.run(size);
+      db.exec('COMMIT');
+    } catch (err) {
+      try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
+      if (isDiskFull(err)) {
+        stats.rejected += 1;
+        return send(res, 507, { error: 'paste storage full' });
+      }
+      console.error('create failed:', err.message);
+      return send(res, 500, { error: 'storage error' });
+    }
+    stats.creates += 1;
     return send(res, 200, { id });
   }
 
   if ((req.method === 'GET' || req.method === 'POST') && pathname.startsWith('/api/paste/')) {
     const id = pathname.slice('/api/paste/'.length);
     if (!PASTE_ID.test(id)) return send(res, 400, { error: 'bad id' });
-    // No awaits between retrieving the entry, checking its address, and consuming it.
     const data = req.method === 'POST' ? await readJson(req, res, 256) : null;
     if (req.method === 'POST' && !data) return;
-    const entry = store.get(id);
-    if (!entry) return send(res, 404, { error: 'not found' });
-    if (entry.expires <= Date.now()) {
-      forget(id, entry);
-      return send(res, 404, { error: 'not found' });
-    }
-    if (entry.pinnedTo && entry.pinnedTo !== ip) return send(res, 404, { error: 'not found' });
+    const now = Date.now();
+
     if (req.method === 'GET') {
-      const { salt, iterations, claim, claimIv } = entry;
-      return send(res, 200, { salt, iterations, claim, claimIv });
+      const row = qGet.get(id);
+      if (!row) return send(res, 404, { error: 'not found' });
+      if (row.expires <= now) {
+        dropPaste(id);
+        return send(res, 404, { error: 'not found' });
+      }
+      if (row.pinnedTo && row.pinnedTo !== ip) return send(res, 404, { error: 'not found' });
+      return send(res, 200, {
+        salt: row.salt, iterations: row.iterations, claim: row.claim,
+        claimIv: row.claimIv, reads: row.reads, expires: row.expires,
+      });
     }
+
     if (!encoded(data.proof, TOKEN)) return send(res, 400, { error: 'invalid read proof' });
     const hash = createHash('sha256').update(Buffer.from(data.proof, 'base64url')).digest();
-    if (!timingSafeEqual(hash, entry.claimHash)) return send(res, 404, { error: 'not found' });
-    if (entry.pinIp) entry.pinnedTo = ip;
-    if (entry.burn) forget(id, entry);
-    return send(res, 200, { ct: entry.ct, iv: entry.iv });
+
+    // One transaction covers the lookup, the address check, the proof check and
+    // the consume: a crash mid-way leaves the paste intact for a retry.
+    let status = 404;
+    let body = { error: 'not found' };
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const row = qGet.get(id);
+      if (row && row.expires <= now) {
+        dropPaste(id);
+      } else if (row && !(row.pinnedTo && row.pinnedTo !== ip) && timingSafeEqual(hash, Buffer.from(row.claimHash))) {
+        if (row.pinIp) qSetPinned.run(ip, id);
+        if (row.reads > 0) {
+          if (row.reads === 1) dropPaste(id);
+          else qSetReads.run(row.reads - 1, id);
+        }
+        status = 200;
+        body = { ct: row.ct, iv: row.iv };
+      }
+      db.exec('COMMIT');
+    } catch (err) {
+      try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
+      console.error('read failed:', err.message);
+      return send(res, 500, { error: 'storage error' });
+    }
+    if (status === 200) stats.reads += 1;
+    return send(res, status, body);
   }
 
   if (req.method === 'GET' && pathname === '/') {
-    return serveHtml(res, PASTE_ID.test(url.search.slice(1)) ? 'view.html' : 'new.html');
+    // Any query string means someone followed a link: show the read page, which
+    // reports a malformed ID itself, instead of silently offering a new paste.
+    return serveHtml(res, url.search.length > 1 ? 'view.html' : 'new.html');
   }
   return send(res, 404, { error: 'not found' });
 });
 
+function dbFootprint() {
+  const sizeOf = (file) => { try { return fs.statSync(file).size; } catch { return 0; } };
+  return sizeOf(DB_PATH) + sizeOf(DB_PATH + '-wal');
+}
+
+// One line per minute to the container log, and only when something happened:
+// counters plus store gauges, never an address or a paste id.
 setInterval(() => {
   const now = Date.now();
-  for (const [id, entry] of store) if (entry.expires <= now) forget(id, entry);
+  let expired = 0;
+  try {
+    for (const row of qExpired.all(now)) if (dropPaste(row.id)) expired += 1;
+    stats.expired += expired;
+    if (expired) {
+      // Bounded on purpose: an unbounded vacuum would walk every free page and
+      // stall the single-threaded event loop. 256 pages is 1 MiB per minute.
+      db.exec('PRAGMA incremental_vacuum(256)');
+      db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    }
+  } catch (err) {
+    console.error('sweep failed:', err.message);
+  }
+  if (stats.creates + stats.reads + stats.rejected + stats.evicted + stats.expired === 0) return;
+  console.log(JSON.stringify({
+    at: new Date(now).toISOString(),
+    creates: stats.creates, reads: stats.reads, rejected: stats.rejected,
+    evicted: stats.evicted, expired: stats.expired,
+    pastes: qTotals.get().rows, bytes: qTotals.get().bytes, dbBytes: dbFootprint(),
+  }));
+  stats.creates = 0;
+  stats.reads = 0;
+  stats.rejected = 0;
+  stats.evicted = 0;
+  stats.expired = 0;
 }, 60000).unref();
 
-server.listen(PORT, '127.0.0.1', () => console.log(`Paste core listening on 127.0.0.1:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`Paste core listening on 127.0.0.1:${server.address().port} (db ${DB_PATH}, cap ${MAX_DISK_MB} MiB)`);
+});

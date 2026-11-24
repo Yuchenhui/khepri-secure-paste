@@ -36,8 +36,9 @@ chmod -R go-w "$APP_DIR"
 docker build -q -t "$IMAGE" .
 
 # ---- 3. containers -------------------------------------------------------
-# --read-only: neither service writes to disk, state lives in memory.
-# --cap-drop ALL + no-new-privileges: nothing here needs any capability.
+# --read-only: nothing is written outside the paste volume, which holds the
+# SQLite database of ciphertext. --cap-drop ALL + no-new-privileges above all.
+# The volume keeps pastes across container recreation; expiry deletes them.
 run_svc() {
   local name="$1" port="$2" script="$3"; shift 3
   docker rm -f "$name" >/dev/null 2>&1 || true
@@ -54,7 +55,10 @@ run_svc() {
 echo "==> starting core on 127.0.0.1:$CORE_PORT"
 run_svc paste-core "$CORE_PORT" core.js \
   -e TRUST_PROXY=1 \
-  -e TTL_HOURS=24 \
+  -e TTL_HOURS=168 \
+  -e MAX_DISK_MB=5120 \
+  -e DB_PATH=/data/paste.db \
+  -v paste-data:/data \
   -e "SHORTENER_URL=https://$DOMAIN/s"
 
 echo "==> starting shortener on 127.0.0.1:$SHORT_PORT"

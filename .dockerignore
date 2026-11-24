@@ -6,3 +6,7 @@
 !public/
 !public/new.html
 !public/view.html
+!public/app.js
+!public/view.js
+!public/vendor/
+!public/vendor/qrcode.js

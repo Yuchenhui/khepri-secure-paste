@@ -69,6 +69,9 @@
   .file-state { align-self: start; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px dashed var(--editor-edge); border-radius: 8px; font: .875rem/1.5 var(--mono); color: var(--editor-text); }
   .file-state-name { min-width: 0; overflow-wrap: anywhere; }
   .file-state-meta { display: block; color: var(--editor-muted); font-size: .8125rem; }
+  .size-state { margin: 10px 0 0; color: var(--editor-muted); font: .8125rem/1.5 var(--mono); }
+  .size-state.over { color: var(--warning); }
+  .size-hint { margin: 2px 0 0; color: var(--editor-muted); font-size: .75rem; line-height: 1.5; }
   .editor-source { display: grid; grid-template-columns: calc(20px + var(--line-digits, 1) * 1ch) minmax(0, 1fr); border: 1px solid var(--editor-edge); border-radius: 8px; font: .9375rem/1.65 var(--mono); }
   .line-numbers { position: relative; overflow: hidden; border-right: 1px solid var(--editor-edge); color: var(--editor-muted); text-align: right; user-select: none; }
   .line-numbers pre { position: absolute; inset: 0 8px auto 0; margin: 0; padding-top: 14px; font: inherit; white-space: pre; }
@@ -94,6 +97,8 @@
   .code { margin: 0; color: var(--accent); font: 650 clamp(1.75rem, 6vw, 2.25rem)/1.15 var(--mono); letter-spacing: .035em; font-variant-numeric: slashed-zero; overflow-wrap: anywhere; }
   .code.long { font: .875rem/1.5 var(--mono); letter-spacing: normal; }
   .result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .qr { display: grid; justify-items: start; gap: 8px; margin-top: 16px; }
+  .qr canvas { display: block; border-radius: 6px; background: #ffffff; }
   details { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
   summary { width: fit-content; color: var(--muted); font-size: .875rem; cursor: pointer; }
   .advanced { margin: 0; padding: 0; border: 0; }
@@ -133,6 +138,8 @@
         <div class="line-numbers" aria-hidden="true"><pre id="editorNumbers">1</pre></div>
         <textarea id="t" wrap="off" spellcheck="false" placeholder="Paste text, commands, or a script"></textarea>
       </div>
+      <p id="sizeState" class="size-state" role="status"></p>
+      <p class="size-hint">Limit 1 MiB once encrypted, base64 and JSON included — about 786,000 ASCII characters, 262,000 CJK or 196,000 emoji; one file up to 256 KB.</p>
     </div>
 
     <section class="settings" aria-labelledby="settingsTitle">
@@ -141,8 +148,20 @@
         <label for="pw">Password <span class="optional">(optional)</span></label>
         <input id="pw" class="input" type="password" placeholder="Leave blank for no password" autocomplete="new-password">
       </div>
+      <div class="field">
+        <label for="ttl">Expires after</label>
+        <select id="ttl" class="input"></select>
+      </div>
+      <div class="field">
+        <label for="reads">Read limit</label>
+        <select id="reads" class="input">
+          <option value="1" selected>Once — deleted after reading</option>
+          <option value="3">3 reads</option>
+          <option value="5">5 reads</option>
+          <option value="0">No limit</option>
+        </select>
+      </div>
       <fieldset class="checks" aria-label="Reading restrictions">
-        <label><input type="checkbox" id="burn" checked> Burn after reading</label>
         <label><input type="checkbox" id="pin"> Lock to the first reader's IP</label>
       </fieldset>
       <button id="go" class="button" type="button">Create link</button>
@@ -152,8 +171,8 @@
           <label for="len">Short code length</label>
           <select id="len" class="input">
             <option value="3">3 characters</option>
-            <option value="4" selected>4 characters</option>
-            <option value="5">5 characters</option>
+            <option value="4">4 characters</option>
+            <option value="5" selected>5 characters</option>
             <option value="6">6 characters</option>
             <option value="7">7 characters</option>
             <option value="8">8 characters</option>
@@ -174,7 +193,12 @@
       <div class="result-actions">
         <a id="openUrl" class="button secondary" href="#" target="_blank" rel="noreferrer">Open</a>
         <button id="copyMain" class="button" type="button">Copy link</button>
+        <button id="showQr" class="button secondary" type="button" aria-expanded="false">QR code</button>
       </div>
+    </div>
+    <div id="qrBox" class="qr" hidden>
+      <canvas id="qrCanvas" role="img" aria-label="QR code for this paste link"></canvas>
+      <p class="note">Scan to open the link on another device. Same key, same lifetime.</p>
     </div>
     <p id="shortState" class="note" role="status"></p>
     <p id="shortNote" class="note"></p>
@@ -192,264 +216,6 @@
   </footer>
 </main>
 
-<script>
-'use strict';
-
-const $ = (id) => document.getElementById(id);
-const ITERATIONS = 200000;
-const MAX_FILE_BYTES = 256 * 1024;
-const FILE_MARKER = 'KHEPRI-FILE 1';
-const SHORTENER = '__SHORTENER__';
-
-const editor = $('t');
-const editorNumbers = $('editorNumbers');
-let editorLineCount = 1;
-
-function syncLineScroll() {
-  editorNumbers.style.transform = `translateY(${-editor.scrollTop}px)`;
-}
-
-function updateLineNumbers() {
-  const count = editor.value.split('\n').length;
-  if (count !== editorLineCount) {
-    editorLineCount = count;
-    editor.parentElement.style.setProperty('--line-digits', String(count).length);
-    editorNumbers.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
-  }
-  syncLineScroll();
-}
-
-editor.addEventListener('input', updateLineNumbers);
-editor.addEventListener('scroll', syncLineScroll);
-window.addEventListener('pageshow', updateLineNumbers);
-
-function b64u(buf) {
-  const bytes = new Uint8Array(buf);
-  let raw = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    raw += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function bytesToB64(bytes) {
-  let raw = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    raw += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(raw);
-}
-
-function formatBytes(n) {
-  return n < 1024 ? n + ' B' : (n / 1024).toFixed(n < 10 * 1024 ? 1 : 0) + ' KB';
-}
-
-async function filePayload(file) {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const meta = b64u(new TextEncoder().encode(JSON.stringify({
-    name: file.name, type: file.type || '', size: bytes.length,
-  })));
-  return FILE_MARKER + '\n' + meta + '\n' + bytesToB64(bytes);
-}
-
-let attached = null;
-
-// A file travels as base64 text inside the same encrypted paste, so the
-// server, the ciphertext format and the shortener all stay unchanged.
-function setAttached(file) {
-  attached = file;
-  $('fileState').hidden = !file;
-  $('file').value = '';
-  document.querySelector('.editor-source').hidden = Boolean(file);
-  editor.disabled = Boolean(file);
-  if (!file) return;
-  $('fileName').textContent = file.name;
-  $('fileMeta').textContent = formatBytes(file.size) + (file.type ? ' · ' + file.type : '');
-  $('createError').textContent = '';
-}
-
-function attachFile(file) {
-  if (!file) return;
-  if (file.size > MAX_FILE_BYTES) {
-    $('createError').textContent =
-      '“' + file.name + '” is ' + formatBytes(file.size) + '; the limit is ' + formatBytes(MAX_FILE_BYTES) + '.';
-    $('file').value = '';
-    return;
-  }
-  setAttached(file);
-}
-
-$('pick').onclick = () => $('file').click();
-$('file').onchange = () => attachFile($('file').files[0]);
-$('dropFile').onclick = () => setAttached(null);
-
-const editorBox = document.querySelector('.editor');
-editorBox.addEventListener('dragover', (e) => {
-  if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault();
-});
-editorBox.addEventListener('drop', (e) => {
-  const file = e.dataTransfer && e.dataTransfer.files[0];
-  if (!file) return;
-  e.preventDefault();
-  attachFile(file);
-});
-
-async function deriveKey(password, salt, keyBytes) {
-  const passwordBytes = new TextEncoder().encode(password);
-  // PrivateBin construction: random key bytes with the password appended.
-  const material = new Uint8Array(keyBytes.length + passwordBytes.length);
-  material.set(keyBytes, 0);
-  material.set(passwordBytes, keyBytes.length);
-  const km = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:ITERATIONS, hash:'SHA-256' },
-    km, { name:'AES-GCM', length:256 }, false, ['encrypt']);
-}
-
-function setMain(href, code) {
-  $('openUrl').href = href;
-  $('mainCode').textContent = code || href;
-  $('mainCode').classList.toggle('long', !code);
-  $('shortOrigin').textContent = code ? href.slice(0, -code.length) : '';
-  $('shortOrigin').hidden = !code;
-  $('longWrap').hidden = !code;
-  $('plateCap').textContent = code ? 'Short code' : 'Paste link';
-}
-
-function setState(text, isError) {
-  const el = $('shortState');
-  el.textContent = text;
-  el.classList.toggle('err', Boolean(isError));
-}
-
-function setNote(text, isWarn) {
-  const el = $('shortNote');
-  el.textContent = text;
-  el.className = text ? (isWarn ? 'note note--warn' : 'note') : '';
-}
-
-async function copyText(text) {
-  try { await navigator.clipboard.writeText(text); }
-  catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
-}
-
-function wireCopy(btnId, getText) {
-  $(btnId).onclick = async () => {
-    const btn = $(btnId);
-    await copyText(getText());
-    const label = btnId === 'copyMain' ? 'Copy link' : 'Copy full link';
-    clearTimeout(btn.copyTimer);
-    btn.textContent = 'Copied';
-    btn.copyTimer = setTimeout(() => { btn.textContent = label; }, 1400);
-  };
-}
-
-wireCopy('copyMain', () => $('openUrl').href);
-wireCopy('copyLong', () => $('longUrl').href);
-
-async function shorten(longUrl, len) {
-  const r = await fetch(SHORTENER + '/shorten', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: longUrl, len }),
-  });
-  const body = await r.text();
-  if (!r.ok) throw new Error('HTTP ' + r.status + (body ? ' — ' + body.trim() : ''));
-  return body.trim();
-}
-
-$('go').onclick = async () => {
-  const btn = $('go');
-  const file = attached;
-  if (!file && !$('t').value) { $('t').focus(); return; }
-
-  btn.disabled = true;
-  btn.setAttribute('aria-busy', 'true');
-  btn.textContent = 'Encrypting';
-  btn.prepend(makeSpinner());
-  $('out').hidden = true;
-  $('longWrap').open = false;
-  $('createError').textContent = '';
-  setState('');
-  setNote('');
-
-  try {
-    const id = [...crypto.getRandomValues(new Uint8Array(8))]
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-    const keyBytes = crypto.getRandomValues(new Uint8Array(32));
-    const salt = crypto.getRandomValues(new Uint8Array(8));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const password = $('pw').value;
-
-    const key = await deriveKey(password, salt, keyBytes);
-    const enc = new TextEncoder();
-    const plaintext = file ? await filePayload(file) : $('t').value;
-    const ct = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv, additionalData: enc.encode(id) }, key, enc.encode(plaintext));
-
-    // The reader decrypts this token before the server releases the body.
-    const proof = crypto.getRandomValues(new Uint8Array(32));
-    const claimIv = crypto.getRandomValues(new Uint8Array(12));
-    const claim = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: claimIv, additionalData: enc.encode('claim:' + id) }, key, proof);
-    const claimHash = await crypto.subtle.digest('SHA-256', proof);
-
-    const r = await fetch('/api/paste', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        id, ct:b64u(ct), iv:b64u(iv), salt:b64u(salt),
-        claim: b64u(claim), claimIv: b64u(claimIv), claimHash: b64u(claimHash), iterations: ITERATIONS,
-        burn:$('burn').checked, pinIp:$('pin').checked,
-      })
-    });
-    const j = await r.json();
-    if (j.error) throw new Error(j.error);
-
-    const longUrl = location.origin + '/?' + id + '#' + b64u(keyBytes);
-    $('longUrl').href = longUrl;
-    $('longUrl').textContent = longUrl;
-    $('longUrl').title = longUrl;
-
-    setMain(longUrl);
-    $('out').hidden = false;
-
-    if (!SHORTENER) return;
-
-    setState('Shortening');
-    try {
-      const len = Number($('len').value);
-      const short = await shorten(longUrl, len);
-      setMain(short, new URL(short).pathname.split('/').pop());
-      setState('');
-      if (!password) {
-        setNote('No password set: the shortener holds the key from this link. Set a password if the content matters.', true);
-      }
-    } catch (e) {
-      setState('Shorten failed — using the long link. ' + e.message, true);
-    }
-  } catch (e) {
-    $('createError').textContent = 'Could not create the paste: ' + e.message;
-  } finally {
-    btn.disabled = false;
-    btn.removeAttribute('aria-busy');
-    btn.textContent = 'Create link';
-  }
-};
-
-function makeSpinner() {
-  const sp = document.createElement('span');
-  sp.className = 'bp-spinner';
-  sp.setAttribute('aria-hidden', 'true');
-  return sp;
-}
-</script>
+<script src="/app.js"></script>
 </body>
 </html>
