@@ -27,7 +27,8 @@ echo "==> deploying to $DOMAIN (short links at /s/)"
 
 # ---- 1. code -------------------------------------------------------------
 mkdir -p "$APP_DIR"
-cp core.js shortener.js http-util.js "$APP_DIR"/
+mkdir -p "$APP_DIR/src"
+cp src/core.js src/shortener.js src/http-util.js "$APP_DIR/src"/
 cp -r public "$APP_DIR"/
 chown -R root:root "$APP_DIR"
 chmod -R go-w "$APP_DIR"
@@ -51,7 +52,7 @@ run_svc() {
     --network host \
     -e "PORT=$port" \
     "$@" \
-    "$IMAGE" node "$script" >/dev/null
+    "$IMAGE" node "src/$script" >/dev/null
 }
 
 echo "==> starting core on 127.0.0.1:$CORE_PORT"

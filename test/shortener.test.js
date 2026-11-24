@@ -27,7 +27,7 @@ function freePort() {
 
 async function startShortener(env = {}) {
   const port = await freePort();
-  const child = spawn(process.execPath, ['shortener.js'], {
+  const child = spawn(process.execPath, ['src/shortener.js'], {
     cwd: ROOT,
     env: {
       ...process.env,

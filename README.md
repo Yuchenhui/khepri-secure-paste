@@ -22,6 +22,19 @@ The long link carries a 256-bit random key in its fragment, which is what makes 
 
 The shortener is a separate process because it has different trust properties from the core: it necessarily holds keys, the core never does. Keeping them apart means a bug in one does not automatically become a bug in the other.
 
+## Layout
+
+```
+src/         core.js, shortener.js, http-util.js — the two services
+public/      new.html, view.html, the scripts they load, vendor/ (QR encoder)
+test/        node --test suites that drive a real process over HTTP
+scripts/     bench.mjs, the latency check
+deploy/      deploy.sh and the nginx vhost
+design/      design tokens and registry for the UI; reference only, never served
+```
+
+Only the files named in the asset map in `src/core.js` are reachable over HTTP, and the page scripts are addressed by content-hashed names.
+
 ## Security model — read this before using short links
 
 **The shortener holds the complete long URL, and the long URL contains the key.**
@@ -81,17 +94,17 @@ ciphertext   = AES-256-GCM(plaintext, iv, adata = pasteId)
 
 ```bash
 # core — no secrets needed; the database file is the only writable path
-PORT=8080 TTL_HOURS=24 DB_PATH=./paste.db MAX_DISK_MB=5120 node core.js
+PORT=8080 TTL_HOURS=24 DB_PATH=./paste.db MAX_DISK_MB=5120 node src/core.js
 
 # shortener
 PORT=8081 PUBLIC_URL=https://paste.example.com/s ALLOWED_ORIGIN=https://paste.example.com \
-  node shortener.js
+  node src/shortener.js
 ```
 
 Set the core's `SHORTENER_URL` to enable automatic short link creation:
 
 ```bash
-PORT=8080 SHORTENER_URL=https://paste.example.com/s node core.js
+PORT=8080 SHORTENER_URL=https://paste.example.com/s node src/core.js
 ```
 
 Both processes bind `127.0.0.1`. The Linux Docker deployment uses host networking so nginx can reach the loopback ports and route `/s/` to the shortener, stripping that prefix. The same public hostname and TLS certificate serve both paths. `ALLOWED_ORIGIN` is the core's public origin and the only permitted redirect origin. `PUBLIC_URL` is the shortener's public base URL, including `/s`. CORS is not authentication.
