@@ -59,6 +59,27 @@ function fileReadout(file) {
   bar.className = 'readout-bar';
   bar.append(heading, save);
 
+  const controls = document.createElement('div');
+  controls.className = 'readout-controls';
+  const copy = document.createElement('button');
+  copy.className = 'button secondary';
+  copy.type = 'button';
+  copy.textContent = 'Copy';
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(file.bytes); }
+    catch {
+      const ta = document.createElement('textarea');
+      ta.value = file.bytes;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.remove();
+    }
+    copy.textContent = 'Copied';
+    setTimeout(() => { copy.textContent = 'Copy'; }, 1400);
+  };
+
   const name = document.createElement('p');
   name.className = 'file-name';
   name.textContent = file.name;
@@ -71,7 +92,8 @@ function fileReadout(file) {
 
   const section = document.createElement('section');
   section.className = 'panel readout';
-  section.append(bar, card);
+  section.append(bar, card, controls);
+  section.dataset.readout = 'file';
   return section;
 }
 
@@ -81,6 +103,21 @@ function show(text, cls) {
   p.textContent = text;
   const b = $('body');
   b.replaceChildren(p);
+}
+
+// A labelled checkbox that reports its state in text: the value can be read
+// from the label alone by a screen reader or a screenshot.
+function wrapToggleFor(setWrap, checked) {
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  const label = document.createElement('label');
+  label.className = 'readout-toggle';
+  const note = document.createElement('span');
+  const sync = () => { box.checked = checked; note.textContent = 'Auto wrap: ' + (checked ? 'on' : 'off'); };
+  sync();
+  box.onchange = () => { checked = !checked; sync(); setWrap(checked); };
+  label.append(box, note);
+  return label;
 }
 
 function makeSpinner() {
@@ -203,19 +240,29 @@ async function decrypt() {
 
     const file = parseFilePayload(plaintext);
     if (file) {
-      $('body').replaceChildren(fileReadout(file), lifetimeNote(d));
+      const fileCard = fileReadout(file);
+      const life = document.createElement('p');
+      life.className = 'readout-life note';
+      life.append(lifetimeNote(d));
+      fileCard.append(life);
+      $('body').replaceChildren(fileCard);
       return;
     }
 
     const pre = document.createElement('pre');
     pre.textContent = plaintext;   // textContent: every newline survives
+    const setWrap = (wrap) => {
+      pre.style.whiteSpace = wrap ? 'pre-wrap' : 'pre';
+      pre.style.overflowWrap = wrap ? 'anywhere' : 'normal';
+      pre.style.wordBreak = wrap ? 'break-all' : 'normal';
+    };
     const numbers = document.createElement('pre');
     numbers.className = 'line-numbers';
     numbers.setAttribute('aria-hidden', 'true');
     numbers.textContent = Array.from({ length: plaintext.split('\n').length }, (_, i) => i + 1).join('\n');
 
     const source = document.createElement('div');
-    source.className = 'readout-source';
+    source.className = 'readout-source';   // gains the wrap class when toggled
     source.tabIndex = 0;
     source.setAttribute('role', 'region');
     source.setAttribute('aria-label', 'Decrypted text');
@@ -248,8 +295,21 @@ async function decrypt() {
     const heading = document.createElement('h2');
     heading.textContent = 'Decrypted content';
     bar.append(heading, copy);
-    readout.append(bar, source);
-    $('body').replaceChildren(readout, lifetimeNote(d));
+    readout.append(source);
+
+    const controls = document.createElement('div');
+    controls.className = 'readout-controls';
+    controls.append(wrapToggleFor((on) => {
+      setWrap(on);
+      source.classList.toggle('wrap', on);
+    }, false), copy);
+    readout.append(controls);
+
+    const life = document.createElement('p');
+    life.className = 'readout-life note';
+    life.append(lifetimeNote(d));
+    readout.append(life);
+    $('body').replaceChildren(readout);
   } catch {
     show('Wrong password or corrupted content.', 'err');
   } finally {
