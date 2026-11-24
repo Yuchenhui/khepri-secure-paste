@@ -98,12 +98,30 @@ function fileReadout(file) {
   return section;
 }
 
-function show(text, cls) {
-  const p = document.createElement('p');
-  p.className = cls;
-  p.textContent = text;
-  const b = $('body');
-  b.replaceChildren(p);
+let readErrorTimer;
+
+function setReadError(message) {
+  clearTimeout(readErrorTimer);
+  const dismissFocused = document.activeElement === $('dismissReadError');
+  $('readError').textContent = message;
+  const countdown = $('readErrorCountdown');
+  if (!message) {
+    countdown.textContent = '';
+    if (dismissFocused) $('go').focus({ preventScroll: true });
+    return;
+  }
+  const deadline = Date.now() + 5000;
+  function tick() {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      setReadError('');
+      return;
+    }
+    const seconds = Math.ceil(remaining / 1000);
+    countdown.textContent = seconds + 's';
+    readErrorTimer = setTimeout(tick, remaining - (seconds - 1) * 1000);
+  }
+  tick();
 }
 
 function wrapToggleFor(setWrap) {
@@ -172,8 +190,9 @@ function lifetimeNote(meta) {
 async function decrypt() {
   const btn = $('go');
   if (btn.disabled) return;
+  setReadError('');
   if (!/^[0-9a-f]{16}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(frag)) {
-    show('Malformed link: missing or invalid ID or key.', 'err');
+    setReadError('Malformed link: missing or invalid ID or key.');
     return;
   }
 
@@ -186,10 +205,10 @@ async function decrypt() {
     let d;
     try {
       const r = await fetch('/api/paste/' + id);
-      if (!r.ok) { show('Link not found, expired, or already read.', 'err'); return; }
+      if (!r.ok) { setReadError('Link not found, expired, or already read.'); return; }
       d = await r.json();
     } catch {
-      show('Network error.', 'err');
+      setReadError('Network error.');
       return;
     }
 
@@ -221,10 +240,10 @@ async function decrypt() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proof: encodedProof }),
       });
-      if (!r.ok) { show('Paste expired, was already read, or is locked to another IP.', 'err'); return; }
+      if (!r.ok) { setReadError('Paste expired, was already read, or is locked to another IP.'); return; }
       envelope = await r.json();
     } catch {
-      show('Could not retrieve the paste. If it was set to burn, it may have been consumed.', 'err');
+      setReadError('Could not retrieve the paste. If it was set to burn, it may have been consumed.');
       return;
     }
 
@@ -306,7 +325,7 @@ async function decrypt() {
     readout.append(life);
     showReadout(readout, source);
   } catch {
-    show('Wrong password or corrupted content.', 'err');
+    setReadError('Wrong password or corrupted content.');
   } finally {
     btn.disabled = false;
     btn.removeAttribute('aria-busy');
@@ -323,6 +342,7 @@ function showReadout(readout, focusTarget) {
   if (moveFocus) focusTarget.focus({ preventScroll: true });
 }
 
+$('dismissReadError').onclick = () => setReadError('');
 $('go').onclick = decrypt;
 $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') decrypt(); });
 $('pw').focus();

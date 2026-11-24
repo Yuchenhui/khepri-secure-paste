@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.source="https://github.com/Yuchenhui/khepri-secur
 ENV NODE_ENV=production
 WORKDIR /app
 COPY src/ ./src/
-COPY public/new.html public/view.html public/app.js public/view.js ./public/
+COPY public/new.html public/view.html public/app.js public/view.js public/favicon.svg ./public/
 COPY public/vendor/qrcode.js ./public/vendor/
 RUN mkdir -p /data && chown node:node /data
 USER node

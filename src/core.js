@@ -184,6 +184,11 @@ SCRIPT_PATHS['view.js'] = loadScript('view.js', {
   render: (src) => src.replace("'__READER_SHORTENER__'", () => JSON.stringify(SHORTENER)),
   cache: 'public, max-age=31536000, immutable',
 });
+ASSETS.set('/favicon.svg', {
+  body: fs.readFileSync(path.join(PUBLIC_DIR, 'favicon.svg')),
+  contentType: 'image/svg+xml',
+  cache: 'public, max-age=3600',
+});
 
 function serveHtml(res, file) {
   fs.readFile(path.join(PUBLIC_DIR, file), 'utf8', (err, source) => {
@@ -201,11 +206,10 @@ function serveHtml(res, file) {
   });
 }
 
-// Assets are only reachable by the exact hashed paths built above, so no
-// request can address the rest of the tree.
+// Only the URLs registered in ASSETS can reach public files.
 function serveAsset(res, asset) {
   res.writeHead(200, {
-    'Content-Type': 'application/javascript; charset=utf-8',
+    'Content-Type': asset.contentType ?? 'application/javascript; charset=utf-8',
     'Content-Length': Buffer.byteLength(asset.body),
     'Cache-Control': asset.cache,
     'X-Content-Type-Options': 'nosniff',
