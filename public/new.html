@@ -14,6 +14,7 @@
     --line: #d8dfe5;
     --control: #8593a3;
     --accent: #214fb8;
+    --code-digit: #a23d09;
     --accent-hover: #183e97;
     --tint: #eff4ff;
     --editor: #18263b;
@@ -37,6 +38,9 @@
   .masthead p { max-width: 48ch; margin: 10px 0 0; color: var(--muted); }
   .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px -24px #18243566; }
   button, input, select, textarea { font: inherit; }
+  input[type="checkbox"] { appearance: none; flex: none; width: 16px; height: 16px; margin: 0; border: 1px solid var(--control); border-radius: 4px; background: var(--paper); accent-color: var(--accent); cursor: pointer; }
+  input[type="checkbox"]:checked { border-color: var(--accent); background: var(--accent) center / 12px 12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3 3 7-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  @media (forced-colors: active) { input[type="checkbox"] { appearance: auto; } }
   :where(button, input, select, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   a { color: var(--accent); text-underline-offset: .18em; }
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--accent); color: var(--paper); font-size: .875rem; font-weight: 650; text-decoration: none; white-space: nowrap; cursor: pointer; }
@@ -62,8 +66,11 @@
 
   .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, .52fr); align-items: stretch; }
   .editor { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 16px 20px 20px; border-radius: 15px 0 0 15px; background: var(--editor); color: var(--editor-text); }
-  .editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 12px; }
+  .editor-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 0 12px; }
   .editor-head > label { font-size: .875rem; font-weight: 650; }
+  .editor-wrap { display: inline-flex; align-items: center; gap: 7px; margin-inline-start: auto; font-size: .875rem; cursor: pointer; }
+  .editor-wrap input:not(:checked) { background: transparent; border-color: var(--editor-muted); }
+  .editor-wrap[hidden] ~ .button { margin-inline-start: auto; }
   .editor-head .button { min-height: 32px; padding: 4px 10px; border-color: var(--editor-edge); background: transparent; color: var(--editor-text); font-size: .8125rem; }
   .editor-head .button:hover:not(:disabled) { background: #ffffff14; }
   .file-state { align-self: start; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px dashed var(--editor-edge); border-radius: 8px; font: .875rem/1.5 var(--mono); color: var(--editor-text); }
@@ -76,14 +83,30 @@
   .line-numbers { position: relative; overflow: hidden; border-right: 1px solid var(--editor-edge); color: var(--editor-muted); text-align: right; user-select: none; }
   .line-numbers pre { position: absolute; inset: 0 8px auto 0; margin: 0; padding-top: 14px; font: inherit; white-space: pre; }
   .editor textarea { width: 100%; min-height: 16rem; resize: vertical; padding: 14px; border: 0; border-radius: 0 7px 7px 0; background: transparent; color: inherit; color-scheme: dark; font: inherit; white-space: pre; tab-size: 4; }
+  .editor-source.wrap { grid-template-columns: minmax(0, 1fr); }
+  .editor-source.wrap .line-numbers { display: none; }
+  .editor-source.wrap textarea { border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .editor textarea::placeholder { color: var(--editor-muted); }
   .editor textarea:focus-visible { outline-color: var(--editor-muted); }
   .settings { display: grid; align-content: start; gap: 16px; min-width: 0; padding: 20px; }
   .settings h2 { margin: 0; font-size: 1.0625rem; letter-spacing: -.01em; }
+  .lifetime { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+  .lifetime legend { margin-bottom: 8px; padding: 0; font-size: .875rem; font-weight: 650; color: var(--muted); }
   .checks { display: grid; gap: 2px; margin: 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
   .checks label { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: .875rem; cursor: pointer; }
-  .checks input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
   .settings .button { justify-self: start; }
+  .create-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(28rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 10px; }
+  .create-feedback:has(#createError:not(:empty)) { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: 0 8px 24px -8px #18243566; }
+  #createError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.4; overflow-wrap: anywhere; }
+  #createError:empty ~ * { display: none; }
+  .error-countdown { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: no-preference) {
+    .create-feedback:has(#createError:not(:empty)) { animation: feedback-in 180ms ease-out; }
+    @keyframes feedback-in { from { opacity: 0; transform: translateY(-8px); } }
+  }
+  .dismiss-error { display: grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+  .dismiss-error:hover { background: var(--tint); color: var(--ink); }
+  .dismiss-error svg { pointer-events: none; }
   /* Only the arrow moves: the native one is drawn by the platform a few pixels
      from the border, so it is replaced by one placed further in. Control width,
      height and text position stay as they are. */
@@ -95,20 +118,26 @@
     background-size: 11px 8px;
     padding-right: 38px;
   }
-  .page-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; }
-  .privacy { flex: 1 1 24rem; max-width: 70ch; }
-  .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -6px -6px -6px 0; border-radius: 6px; color: var(--muted); }
+  .page-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-top: 12px; padding-inline: clamp(12px, 2vw, 20px); }
+  .privacy { max-inline-size: 68ch; overflow-wrap: anywhere; text-wrap: balance; }
+  .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
   .source-link svg { width: 20px; height: 20px; fill: currentColor; }
-  #createError:not(:empty) { margin-top: 12px; }
   #out { margin-top: 24px; padding: 20px; }
   #shortState:not(:empty), #shortNote:not(:empty) { margin: 12px 0 0; }
   .result-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; min-width: 0; }
-  .result-main > div:first-child { flex: 1 1 12rem; min-width: 0; }
+  .result-main > div:first-child { flex: 1 1 20rem; min-width: 0; }
   .result-main h2 { margin: 0 0 4px; font-size: .875rem; }
+  .result-link { margin: 0; overflow-wrap: anywhere; }
   #shortOrigin { margin: 0; font: .8125rem/1.5 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
   .code { margin: 0; color: var(--accent); font: 650 clamp(1.75rem, 6vw, 2.25rem)/1.15 var(--mono); letter-spacing: .035em; font-variant-numeric: slashed-zero; overflow-wrap: anywhere; }
+  .code:not(.long) {
+    display: inline-block; max-inline-size: calc(100% - 8px); margin-inline-start: 8px; padding: 2px 8px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--tint);
+    font-family: "Cascadia Mono", Menlo, "DejaVu Sans Mono", "Courier New", monospace;
+  }
   .code .digit { color: var(--ink); }
+  .code:not(.long) .digit { color: var(--code-digit); }
   .code.long { font: .875rem/1.5 var(--mono); letter-spacing: normal; }
   .result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .qr { display: grid; justify-items: start; gap: 8px; margin-top: 16px; }
@@ -118,7 +147,17 @@
   .advanced { margin: 0; padding: 0; border: 0; }
   .advanced summary { min-height: 32px; line-height: 32px; }
   .advanced summary:hover { color: var(--ink); }
-  .advanced .field { max-width: 12rem; margin-top: 8px; }
+  .advanced .field { margin-top: 8px; }
+  .length-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .length-label output { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .length-slider { width: 100%; height: 44px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  @media (forced-colors: none) {
+    .length-slider { appearance: none; background: transparent; }
+    .length-slider::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: var(--line); }
+    .length-slider::-moz-range-track { height: 8px; border-radius: 4px; background: var(--line); }
+    .length-slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; margin-top: -6px; border: 0; border-radius: 50%; background: var(--accent); }
+    .length-slider::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--accent); }
+  }
   .link-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
   .link-row a { flex: 1; min-width: 0; font: .8125rem/1.5 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   @media (max-width: 40rem) {
@@ -142,6 +181,7 @@
       <div class="editor-head">
         <label for="t">Paste content</label>
         <input id="file" type="file" hidden>
+        <label id="wrapLabel" class="editor-wrap"><input id="autoWrap" type="checkbox">Auto wrap</label>
         <button id="pick" class="button secondary" type="button">Attach file</button>
       </div>
       <p id="fileState" class="file-state" hidden>
@@ -162,19 +202,22 @@
         <label for="pw">Password <span class="optional">(optional)</span></label>
         <input id="pw" class="input" type="password" placeholder="No password" autocomplete="new-password">
       </div>
-      <div class="field">
-        <label for="ttl">Expires after</label>
-        <select id="ttl" class="input"></select>
-      </div>
-      <div class="field">
-        <label for="reads">Read limit</label>
-        <select id="reads" class="input">
-          <option value="1" selected>Burn after reading</option>
-          <option value="3">3 reads</option>
-          <option value="5">5 reads</option>
-          <option value="0">Unlimited</option>
-        </select>
-      </div>
+      <fieldset class="lifetime">
+        <legend>Link lifetime</legend>
+        <div class="field">
+          <label for="ttl">Expires after</label>
+          <select id="ttl" class="input"></select>
+        </div>
+        <div class="field">
+          <label for="reads">Read limit</label>
+          <select id="reads" class="input">
+            <option value="1" selected>Burn after reading</option>
+            <option value="3">3 reads</option>
+            <option value="5">5 reads</option>
+            <option value="0">Unlimited</option>
+          </select>
+        </div>
+      </fieldset>
       <fieldset class="checks" aria-label="Reading restrictions">
         <label><input type="checkbox" id="pin"> Lock to the first reader's IP</label>
       </fieldset>
@@ -182,27 +225,25 @@
       <details class="advanced">
         <summary>Advanced options</summary>
         <div class="field">
-          <label for="len">Short code length</label>
-          <select id="len" class="input">
-            <option value="3">3 characters</option>
-            <option value="4">4 characters</option>
-            <option value="5" selected>5 characters</option>
-            <option value="6">6 characters</option>
-            <option value="7">7 characters</option>
-            <option value="8">8 characters</option>
-          </select>
+          <label for="len" class="length-label">Short code length <output id="lenValue" for="len" aria-hidden="true">5</output></label>
+          <input id="len" class="length-slider" type="range" min="3" max="8" step="1" value="5">
         </div>
       </details>
     </section>
   </div>
-  <p id="createError" class="note err" role="alert"></p>
+  <div class="create-feedback">
+    <p id="createError" class="note err" role="alert"></p>
+    <span id="createErrorCountdown" class="note error-countdown" aria-hidden="true"></span>
+    <button id="dismissCreateError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
 
   <section id="out" class="panel" aria-labelledby="plateCap" hidden>
     <div class="result-main">
       <div>
         <h2 id="plateCap">Paste link</h2>
-        <p id="shortOrigin" hidden></p>
-        <p class="code" id="mainCode"></p>
+        <p class="result-link"><span id="shortOrigin" hidden></span><span class="code" id="mainCode"></span></p>
       </div>
       <div class="result-actions">
         <a id="openUrl" class="button secondary" href="#" target="_blank" rel="noreferrer">Open</a>
