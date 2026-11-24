@@ -334,6 +334,83 @@ function wireCopy(btnId, getText) {
 wireCopy('copyMain', () => $('openUrl').href);
 wireCopy('copyLong', () => $('longUrl').href);
 
+// Password generator. The password is never sent to the server: it is only
+// appended to the random key material before the key is derived, so a strong
+// one is what stands between a leaked link and the content.
+const PW_LOWER = 'abcdefghijklmnopqrstuvwxyz';
+const PW_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const PW_DIGITS = '0123456789';
+// No quotes, backslashes or spaces: the value travels through chat and shells.
+const PW_SYMBOLS = '!@#$%^&*()-_=+[]{}<>?.,:;~';
+const PW_LENGTH = 20;
+
+function randomIndex(max) {
+  const limit = Math.floor(256 / max) * max;
+  const buf = new Uint8Array(1);
+  let value;
+  do { crypto.getRandomValues(buf); value = buf[0]; } while (value >= limit);
+  return value % max;
+}
+
+function randomChars(set, count) {
+  let out = '';
+  for (let i = 0; i < count; i++) out += set[randomIndex(set.length)];
+  return out;
+}
+
+function generatePassword() {
+  const all = PW_LOWER + PW_UPPER + PW_DIGITS + PW_SYMBOLS;
+  // One from each class first, so the result always has all four.
+  let password = randomChars(PW_LOWER, 1) + randomChars(PW_UPPER, 1)
+    + randomChars(PW_DIGITS, 1) + randomChars(PW_SYMBOLS, 1)
+    + randomChars(all, PW_LENGTH - 4);
+  const chars = password.split('');
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
+
+const pwInput = $('pw');
+const pwNote = $('pwNote');
+const pwGen = $('pwGen');
+const pwCopy = $('pwCopy');
+
+function syncPwActions() {
+  pwCopy.hidden = !pwInput.value;
+}
+
+function setPwNote(text) {
+  pwNote.textContent = text;
+}
+
+pwInput.addEventListener('input', () => { syncPwActions(); setPwNote(''); });
+
+pwGen.addEventListener('click', () => {
+  pwInput.value = generatePassword();
+  syncPwActions();
+  setPwNote('Generated. Copy it and send it over a different channel than the link.');
+  pwInput.focus();
+});
+
+pwCopy.addEventListener('click', async () => {
+  const value = pwInput.value;
+  if (!value) return;
+  await copyText(value);
+  const icons = pwCopy.querySelectorAll('svg');
+  icons[0].hidden = true;
+  icons[1].hidden = false;
+  pwCopy.title = 'Copied';
+  setPwNote('Password copied to the clipboard.');
+  clearTimeout(pwCopy.resetTimer);
+  pwCopy.resetTimer = setTimeout(() => {
+    icons[0].hidden = false;
+    icons[1].hidden = true;
+    pwCopy.title = 'Copy password';
+  }, 1400);
+});
+
 // The encoder is vendored and fetched only when a code is asked for, so a page
 // load that never shows a QR still downloads nothing beyond the HTML.
 let qrLoading = null;

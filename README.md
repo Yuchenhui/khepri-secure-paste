@@ -47,6 +47,8 @@ Only the files named in the asset map in `src/core.js` are reachable over HTTP, 
 
 Password protection is optional. For sensitive content use a strong password or share the long link directly. Short codes are not access controls. Short link creation sends the full URL in a POST body; disable request-body and redirect-URL logging for the shortener and its proxies.
 
+The create form generates a password for you: the refresh button inside the password field writes 20 random characters — upper case, lower case, digits and symbols, at least one of each — and the copy button next to it puts the value on the clipboard. The password never reaches the server; it is appended to the random key material before the key is derived.
+
 ## Optional IP pinning
 
 A paste can be locked to the IP of the first successful read-proof submission. Any later read from a different IP returns `404`. Shared egress IPs do not distinguish users, and a network change can lock out the original recipient.
