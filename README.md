@@ -115,7 +115,7 @@ Pastes live in a SQLite database (`node:sqlite`, no dependency): WAL mode, a 32 
 
 Expiry is enforced twice: on access, and by a sweep every minute that deletes expired rows and then runs `incremental_vacuum` plus a WAL checkpoint, so the file shrinks as pastes die. Nothing survives its TTL.
 
-Short links stay in memory: recreating the shortener container drops them, and a short link redirects until its own TTL (24 hours by default) even if the paste behind it is gone.
+Short links live in their own SQLite database on the same `paste-data` volume, so recreating the shortener container no longer turns every shared code into a dead link. A short link redirects until its own TTL (168 hours by default, matching the paste lifetime) even if the paste behind it is gone. The mapping holds the paste key, so the file is written with owner-only permissions and one client may hold at most 200 live codes.
 
 Backups are deliberately not part of this service. If you add one, it would outlive the TTL and keep ciphertext the service itself has already deleted.
 
@@ -153,8 +153,9 @@ The code encodes whichever link is displayed: with the shortener enabled that is
 
 The core never holds a key, so it cannot read, classify or block a payload: content filtering is impossible by construction, not a missing feature. What is bounded instead is the shape of the service:
 
-- 1024 pastes and 5 GiB of ciphertext on disk, 1 MiB per request, 256 KB per attached file, 20 reads, 7 days at most. A flood cannot grow the store past the cap, and every paste dies at its TTL.
+- 200000 pastes and 5 GiB of ciphertext on disk, 1 MiB per request, 256 KB per attached file, 20 reads, 7 days at most. A flood cannot grow the store past the cap, and every paste dies at its TTL.
 - 2 MiB and 32 pastes per client: a single source cannot fill the store. Creating past a full store drops the oldest paste instead of refusing every write, so one client's traffic cannot make the service read-only for others.
+- The shortener keeps 100000 codes in total and 200 per client, so one source cannot fill the shared link store either.
 - 60 create/read requests per minute per IP at the app, 120/min with a burst cap at nginx, 16 concurrent connections per IP.
 - No accounts, no logs of requests, no disk writes, nothing to hand over beyond ciphertext that expires. The only thing written to the container log is one line per active minute with counters and store gauges: `creates`, `reads`, `rejected`, `evicted`, `expired`, `pastes`, `bytes`, `clients`. No address, no paste id, no content.
 - The shortener only accepts URLs under its own host, so it cannot be used as a general-purpose shortener for third-party links.
@@ -165,10 +166,10 @@ The containers themselves already run `--read-only`, `--cap-drop ALL`, `--securi
 
 ## Limits
 
-- Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 1024 (`MAX_PASTES`) and the database at `MAX_DISK_MB` (5120). The create form shows a live character count and the encrypted weight against that cap, measures the encoded request before sending, and refuses it locally with the size and the limit, so an oversized paste never reaches the server.
+- Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 200000 (`MAX_PASTES`) and the database at `MAX_DISK_MB` (5120). The create form shows a live character count and the encrypted weight against that cap, measures the encoded request before sending, and refuses it locally with the size and the limit, so an oversized paste never reaches the server.
 - The create form caps an attached file at 256 KB, which encodes to roughly 466 KB of JSON — comfortably inside the 1 MiB request limit. One file per paste: the payload format holds a single `KHEPRI-FILE` block.
 - Core validates `iterations` between 100000 and 1000000; the client always sends 200000.
-- Base62 codes default to 5 characters (`CODE_LEN` overrides). Creation API accepts lengths 3–12 and caps stored mappings at 4096.
+- Base62 codes default to 5 characters (`CODE_LEN` overrides). Creation API accepts lengths 3–12 and caps stored mappings at 100000 (`MAX_LINKS`), with 200 per client (`MAX_IP_LINKS`).
 - Rate limits: core 60 req/min/IP; shortener 120 req/min/IP. Rate-limit tables expire old entries and are bounded.
 
 ## Tests

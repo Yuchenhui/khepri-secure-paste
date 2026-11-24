@@ -2,7 +2,8 @@
 # Deploy the paste service to a host running nginx + Docker.
 #
 # Builds the image, recreates both containers, and installs a single nginx
-# vhost. Recreating the containers clears all in-memory pastes and short links.
+# vhost. Pastes and short links live in SQLite on the paste-data volume, so
+# recreating the containers keeps both until their TTL runs out.
 #
 # Usage: sudo ./deploy.sh [--domain paste.example.com]
 
@@ -69,7 +70,9 @@ run_svc paste-short "$SHORT_PORT" shortener.js \
   -e TRUST_PROXY=1 \
   -e "PUBLIC_URL=https://$DOMAIN/s" \
   -e "ALLOWED_ORIGIN=https://$DOMAIN" \
-  -e TTL_HOURS=24
+  -e SHORTENER_DB_PATH=/data/shortener.db \
+  -e TTL_HOURS=168 \
+  -v paste-data:/data
 
 # ---- 4. nginx ------------------------------------------------------------
 sed -e "s/__DOMAIN__/$DOMAIN/g" \
