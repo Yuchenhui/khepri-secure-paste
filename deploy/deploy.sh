@@ -66,11 +66,21 @@ run_svc paste-core "$CORE_PORT" core.js \
   -e "SHORTENER_URL=https://$DOMAIN/s"
 
 echo "==> starting shortener on 127.0.0.1:$SHORT_PORT"
+# The short-link database holds the paste key, so it is encrypted with a key
+# that never lands on the data volume: stealing the volume alone reveals
+# nothing. The key file is the only copy and stays root-only on this host.
+KEY_FILE="$APP_DIR/shortener.key"
+if [[ ! -s "$KEY_FILE" ]]; then
+  openssl rand -base64 32 > "$KEY_FILE"
+  chmod 600 "$KEY_FILE"
+  echo "generated a new short-link key at $KEY_FILE"
+fi
 run_svc paste-short "$SHORT_PORT" shortener.js \
   -e TRUST_PROXY=1 \
   -e "PUBLIC_URL=https://$DOMAIN/s" \
   -e "ALLOWED_ORIGIN=https://$DOMAIN" \
   -e SHORTENER_DB_PATH=/data/shortener.db \
+  -e "SHORTENER_KEY=$(cat "$KEY_FILE")" \
   -e TTL_HOURS=168 \
   -v paste-data:/data
 

@@ -1,7 +1,7 @@
 'use strict';
 
 const http = require('node:http');
-const { randomInt } = require('node:crypto');
+const { randomInt, randomBytes, createCipheriv, createDecipheriv } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
@@ -24,6 +24,37 @@ const publicBase = configuredHttpBase(process.env.PUBLIC_URL, true);
 function validLength(length) {
   return Number.isInteger(length) && length >= 3 && length <= 12;
 }
+// The mapping holds the key of every live paste, so the file is encrypted with
+// a key that never lands on disk: reading the database is not enough.
+function parseKey(value) {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  let buf;
+  if (/^[0-9a-f]{64}$/i.test(raw)) buf = Buffer.from(raw, 'hex');
+  else buf = Buffer.from(raw, 'base64');
+  return buf.length === 32 ? buf : null;
+}
+const KEY = parseKey(process.env.SHORTENER_KEY);
+if (!KEY) throw new Error('SHORTENER_KEY must be 32 bytes as base64 or 64 hex characters');
+
+function sealTarget(target) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', KEY, iv);
+  const body = Buffer.concat([cipher.update(target, 'utf8'), cipher.final()]);
+  return { target: body.toString('base64'), iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64') };
+}
+
+function openTarget(row) {
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', KEY, Buffer.from(row.iv, 'base64'));
+    decipher.setAuthTag(Buffer.from(row.tag, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(row.target, 'base64')), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
 if (!Number.isSafeInteger(TTL_MS) || TTL_MS <= 0) throw new Error('TTL_HOURS must be positive');
 
 if (!validLength(DEFAULT_LENGTH)) throw new Error('CODE_LEN must be an integer from 3 to 12');
@@ -44,18 +75,30 @@ db.exec(`
     code TEXT PRIMARY KEY,
     target TEXT NOT NULL,
     owner TEXT NOT NULL,
-    expires INTEGER NOT NULL
+    expires INTEGER NOT NULL,
+    iv TEXT NOT NULL DEFAULT '',
+    tag TEXT NOT NULL DEFAULT ''
   );
   CREATE INDEX IF NOT EXISTS links_expires ON links(expires);
   CREATE INDEX IF NOT EXISTS links_owner ON links(owner);
 `);
+const columns = db.prepare('PRAGMA table_info(links)').all().map((c) => c.name);
+if (!columns.includes('iv')) db.exec("ALTER TABLE links ADD COLUMN iv TEXT NOT NULL DEFAULT ''");
+if (!columns.includes('tag')) db.exec("ALTER TABLE links ADD COLUMN tag TEXT NOT NULL DEFAULT ''");
+// Rows written before the database was encrypted cannot be read back, so they
+// are dropped rather than left to fail every lookup.
+const legacy = db.prepare("SELECT count(*) AS c FROM links WHERE iv = ''").get().c;
+if (legacy > 0) {
+  db.prepare("DELETE FROM links WHERE iv = ''").run();
+  console.log(`Dropped ${legacy} short link(s) stored before the database was encrypted`);
+}
 try { fs.chmodSync(DB_PATH, 0o600); } catch { /* best effort */ }
 
-const qGet = db.prepare('SELECT target, expires FROM links WHERE code = ?');
+const qGet = db.prepare('SELECT target, iv, tag, expires FROM links WHERE code = ?');
 const qHas = db.prepare('SELECT 1 AS hit FROM links WHERE code = ?');
-const qInsert = db.prepare('INSERT INTO links (code, target, owner, expires) VALUES (?, ?, ?, ?)');
-const qCount = db.prepare('SELECT count(*) AS c FROM links');
-const qOwnerCount = db.prepare('SELECT count(*) AS c FROM links WHERE owner = ?');
+const qInsert = db.prepare('INSERT INTO links (code, target, owner, expires, iv, tag) VALUES (?, ?, ?, ?, ?, ?)');
+const qCount = db.prepare('SELECT count(*) AS c FROM links WHERE expires > ?');
+const qOwnerCount = db.prepare('SELECT count(*) AS c FROM links WHERE owner = ? AND expires > ?');
 const qDelete = db.prepare('DELETE FROM links WHERE code = ?');
 const qDeleteExpired = db.prepare('DELETE FROM links WHERE expires <= ?');
 
@@ -108,12 +151,15 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     const length = data.len === undefined ? DEFAULT_LENGTH : data.len;
     if (!target) return send(res, 400, 'invalid paste destination');
     if (!validLength(length)) return send(res, 400, 'len must be an integer from 3 to 12');
-    // One client must not be able to fill the shared store on its own.
-    if (qOwnerCount.get(ip).c >= MAX_IP_LINKS) return send(res, 429, 'short link quota exceeded');
-    if (qCount.get().c >= MAX_LINKS) return send(res, 503, 'short link storage full');
+    // One client must not be able to fill the shared store on its own. The
+    // quota counts the codes this client holds right now, not every code it
+    // ever made: expired links free their slot.
+    if (qOwnerCount.get(ip, Date.now()).c >= MAX_IP_LINKS) return send(res, 429, 'short link quota exceeded');
+    if (qCount.get(Date.now()).c >= MAX_LINKS) return send(res, 503, 'short link storage full');
     const code = newCode(length);
     if (!code) return send(res, 503, 'could not allocate a short code');
-    qInsert.run(code, target, ip, Date.now() + TTL_MS);
+    const sealed = sealTarget(target);
+    qInsert.run(code, sealed.target, ip, Date.now() + TTL_MS, sealed.iv, sealed.tag);
     return send(res, 200, publicBase + '/' + code);
   }
 
@@ -126,8 +172,13 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       qDelete.run(code);
       return send(res, 404, 'unknown code');
     }
+    const target = openTarget(entry);
+    if (!target) {
+      console.error('short link ' + code + ' could not be decrypted');
+      return send(res, 404, 'unknown code');
+    }
     // Following a redirect never consumes a paste or its short link.
-    return send(res, 302, '', { Location: entry.target });
+    return send(res, 302, '', { Location: target });
   }
   return send(res, 404, 'not found');
 });

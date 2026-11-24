@@ -11,6 +11,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
+const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = path.join(__dirname, '..');
 const ORIGIN = 'https://paste.test';
@@ -43,6 +44,7 @@ async function startShortener(env = {}) {
       ALLOWED_ORIGIN: ORIGIN,
       PUBLIC_URL: PUBLIC_BASE,
       SHORTENER_DB_PATH: dbPath,
+      SHORTENER_KEY: randomBytes(32).toString('base64'),
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -171,7 +173,8 @@ describe('shortener', () => {
   test('a short link survives a restart', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-restart-'));
     const dbPath = path.join(dir, 'shortener.db');
-    const first = await startShortener({ SHORTENER_DB_PATH: dbPath });
+    const key = randomBytes(32).toString('base64');
+    const first = await startShortener({ SHORTENER_DB_PATH: dbPath, SHORTENER_KEY: key });
     let link;
     try {
       const r = await shorten(first, { url: pasteUrl() });
@@ -181,7 +184,7 @@ describe('shortener', () => {
       await first.stop();
     }
 
-    const second = await startShortener({ SHORTENER_DB_PATH: dbPath });
+    const second = await startShortener({ SHORTENER_DB_PATH: dbPath, SHORTENER_KEY: key });
     try {
       const code = new URL(link).pathname.split('/').pop();
       const redirect = await fetch(`${second.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.31.0.1' } });
@@ -206,6 +209,78 @@ describe('shortener', () => {
       assert.equal(other.status, 200);
     } finally {
       await capped.stop();
+    }
+  });
+
+  test('the quota counts live links, not expired ones', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-quota-'));
+    const dbPath = path.join(dir, 'shortener.db');
+    const capped = await startShortener({ SHORTENER_DB_PATH: dbPath, MAX_IP_LINKS: '1' });
+    try {
+      // A row that already expired still sits in the table until the sweep
+      // runs; it must not take up the client's quota.
+      const db = new DatabaseSync(dbPath);
+      db.exec('PRAGMA busy_timeout = 2000');
+      db.prepare('INSERT INTO links (code, target, owner, expires, iv, tag) VALUES (?, ?, ?, ?, ?, ?)')
+        .run('OLDONE', 'ciphertext', '10.31.0.1', Date.now() - 60000, 'iv', 'tag');
+      db.close();
+
+      const headers = { Origin: ORIGIN, 'x-forwarded-for': '10.31.0.1' };
+      assert.equal((await shorten(capped, { url: pasteUrl() }, headers)).status, 200);
+      assert.equal((await shorten(capped, { url: pasteUrl() }, headers)).status, 429);
+    } finally {
+      await capped.stop();
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  });
+
+  test('the stored mapping is encrypted on disk', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-crypt-'));
+    const dbPath = path.join(dir, 'shortener.db');
+    const server = await startShortener({ SHORTENER_DB_PATH: dbPath });
+    try {
+      const target = pasteUrl();
+      const r = await shorten(server, { url: target });
+      assert.equal(r.status, 200);
+      const link = (await r.text()).trim();
+      const code = link.slice(link.lastIndexOf('/') + 1);
+      const raw = fs.readFileSync(dbPath).toString('latin1')
+        + (fs.existsSync(dbPath + '-wal') ? fs.readFileSync(dbPath + '-wal').toString('latin1') : '');
+      // The code is the lookup key and stays readable; the target it points at
+      // must not be.
+      assert.equal(raw.includes(target), false, 'the paste URL must not be readable on disk');
+      assert.equal(raw.includes(code), true, 'the code is the lookup key');
+
+      const redirect = await fetch(`${server.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.32.0.1' } });
+      assert.equal(redirect.status, 302);
+      assert.equal(redirect.headers.get('location'), target);
+    } finally {
+      await server.stop();
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  });
+
+  test('a link made under one key cannot be read under another', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-key-'));
+    const dbPath = path.join(dir, 'shortener.db');
+    const keyA = randomBytes(32).toString('base64');
+    const first = await startShortener({ SHORTENER_DB_PATH: dbPath, SHORTENER_KEY: keyA });
+    let code;
+    try {
+      const r = await shorten(first, { url: pasteUrl() });
+      assert.equal(r.status, 200);
+      code = (await r.text()).trim().slice(-5);
+    } finally {
+      await first.stop();
+    }
+
+    const second = await startShortener({ SHORTENER_DB_PATH: dbPath, SHORTENER_KEY: randomBytes(32).toString('base64') });
+    try {
+      const redirect = await fetch(`${second.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.33.0.1' } });
+      assert.equal(redirect.status, 404);
+    } finally {
+      await second.stop();
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
 });
