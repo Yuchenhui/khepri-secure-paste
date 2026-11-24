@@ -84,10 +84,17 @@
   .checks label { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: .875rem; cursor: pointer; }
   .checks input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
   .settings .button { justify-self: start; }
-  /* A full-width control parks a select's arrow at the far edge, a long way
-     from a short value like "7 days". One cap for the whole settings column so
-     the password field and both dropdowns end on the same line. */
-  .settings .input { max-width: 12.5rem; }
+  /* Only the arrow moves: the native one is drawn by the platform a few pixels
+     from the border, so it is replaced by one placed further in. Control width,
+     height and text position stay as they are. */
+  select.input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23182435' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 20px center;
+    background-size: 11px 8px;
+    padding-right: 38px;
+  }
   .page-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; }
   .privacy { flex: 1 1 24rem; max-width: 70ch; }
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -6px -6px -6px 0; border-radius: 6px; color: var(--muted); }
