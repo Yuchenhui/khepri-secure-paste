@@ -11,7 +11,9 @@ const PORT = Number(process.env.PORT || 8080);
 const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
 const SHORTENER = process.env.SHORTENER_URL ? configuredHttpBase(process.env.SHORTENER_URL, true) : '';
 const MAX_BODY = 1024 * 1024;
-const MAX_PASTES = Number(process.env.MAX_PASTES || 1024);
+// 1024 was the in-memory era's guard on a Map. On disk the byte cap governs, so
+// the row cap only matters for very small pastes and is set well above them.
+const MAX_PASTES = Number(process.env.MAX_PASTES || 200000);
 if (!Number.isInteger(MAX_PASTES) || MAX_PASTES < 1) throw new Error('MAX_PASTES must be a positive integer');
 // Per client, so a single source cannot fill the store: two full-size pastes
 // worth of ciphertext, or 32 small ones, whichever runs out first.

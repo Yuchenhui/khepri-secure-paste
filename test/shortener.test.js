@@ -6,7 +6,9 @@
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const net = require('node:net');
+const os = require('node:os');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
 
@@ -27,6 +29,10 @@ function freePort() {
 
 async function startShortener(env = {}) {
   const port = await freePort();
+  // Each server gets its own database file; pass SHORTENER_DB_PATH in env to
+  // share one between two starts (that is how the restart test works).
+  const dir = env.SHORTENER_DB_PATH ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-test-'));
+  const dbPath = env.SHORTENER_DB_PATH || path.join(dir, 'shortener.db');
   const child = spawn(process.execPath, ['src/shortener.js'], {
     cwd: ROOT,
     env: {
@@ -36,6 +42,7 @@ async function startShortener(env = {}) {
       TRUST_PROXY: '1',
       ALLOWED_ORIGIN: ORIGIN,
       PUBLIC_URL: PUBLIC_BASE,
+      SHORTENER_DB_PATH: dbPath,
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -56,7 +63,16 @@ async function startShortener(env = {}) {
     } catch { /* not listening yet */ }
     await new Promise((r) => setTimeout(r, 50));
   }
-  return { base, stop() { child.kill(); }, logs() { return output; } };
+  return {
+    base,
+    async stop() {
+      if (child.exitCode === null) {
+        await new Promise((resolve) => { child.once('exit', resolve); child.kill(); });
+      }
+      if (dir) fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    },
+    logs() { return output; },
+  };
 }
 
 const pasteUrl = () =>
@@ -148,7 +164,48 @@ describe('shortener', () => {
       const link = (await (await shorten(other, { url: pasteUrl() })).text()).trim();
       assert.equal(link.slice(link.lastIndexOf('/') + 1).length, 7);
     } finally {
-      other.stop();
+      await other.stop();
+    }
+  });
+
+  test('a short link survives a restart', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-restart-'));
+    const dbPath = path.join(dir, 'shortener.db');
+    const first = await startShortener({ SHORTENER_DB_PATH: dbPath });
+    let link;
+    try {
+      const r = await shorten(first, { url: pasteUrl() });
+      assert.equal(r.status, 200);
+      link = (await r.text()).trim();
+    } finally {
+      await first.stop();
+    }
+
+    const second = await startShortener({ SHORTENER_DB_PATH: dbPath });
+    try {
+      const code = new URL(link).pathname.split('/').pop();
+      const redirect = await fetch(`${second.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.31.0.1' } });
+      assert.equal(redirect.status, 302);
+      assert.match(redirect.headers.get('location'), /^https:\/\/paste\.test\/\?[0-9a-f]{16}#/);
+    } finally {
+      await second.stop();
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  });
+
+  test('one client cannot fill the link store', async () => {
+    const capped = await startShortener({ MAX_IP_LINKS: '2' });
+    try {
+      const headers = { Origin: ORIGIN, 'x-forwarded-for': '10.30.0.1' };
+      assert.equal((await shorten(capped, { url: pasteUrl() }, headers)).status, 200);
+      assert.equal((await shorten(capped, { url: pasteUrl() }, headers)).status, 200);
+      const blocked = await shorten(capped, { url: pasteUrl() }, headers);
+      assert.equal(blocked.status, 429);
+      assert.equal(await blocked.text(), 'short link quota exceeded');
+      const other = await shorten(capped, { url: pasteUrl() }, { Origin: ORIGIN, 'x-forwarded-for': '10.30.0.2' });
+      assert.equal(other.status, 200);
+    } finally {
+      await capped.stop();
     }
   });
 });
