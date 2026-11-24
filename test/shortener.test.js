@@ -283,4 +283,27 @@ describe('shortener', () => {
       fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   });
+
+  test('plaintext rows from before encryption are dropped and scrubbed', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shortener-legacy-'));
+    const dbPath = path.join(dir, 'shortener.db');
+    const target = pasteUrl();
+    const old = new DatabaseSync(dbPath);
+    old.exec(`CREATE TABLE links (code TEXT PRIMARY KEY, target TEXT NOT NULL, owner TEXT NOT NULL, expires INTEGER NOT NULL);`);
+    old.prepare('INSERT INTO links (code, target, owner, expires) VALUES (?, ?, ?, ?)')
+      .run('OLD', target, '10.34.0.1', Date.now() + 3600000);
+    old.close();
+
+    const server = await startShortener({ SHORTENER_DB_PATH: dbPath });
+    try {
+      const redirect = await fetch(`${server.base}/OLD`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.34.0.1' } });
+      assert.equal(redirect.status, 404);
+      const raw = fs.readFileSync(dbPath).toString('latin1')
+        + (fs.existsSync(dbPath + '-wal') ? fs.readFileSync(dbPath + '-wal').toString('latin1') : '');
+      assert.equal(raw.includes(target), false, 'the dropped plaintext must not survive on disk');
+    } finally {
+      await server.stop();
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  });
 });
