@@ -37,7 +37,7 @@ Only the files named in the asset map in `src/core.js` are reachable over HTTP, 
 
 ## Security model — read this before using short links
 
-**The shortener holds the complete long URL, and the long URL contains the key.**
+**The shortener holds the complete long URL, and the long URL contains the key.** On disk that mapping is encrypted under `SHORTENER_KEY`; in memory the shortener has the key it must redirect to.
 
 | Actor | Without password | With password |
 |---|---|---|
@@ -83,12 +83,13 @@ Matches PrivateBin's construction:
 
 ```
 key material = 32 random bytes ++ password      (password appended, may be empty)
-key          = PBKDF2-SHA256(material, salt, 200000)
+key          = PBKDF2-SHA256(material, salt, 1000000)
 ciphertext   = AES-256-GCM(plaintext, iv, adata = pasteId)
 ```
 
 - Each paste uses an 8-byte random salt and separate 12-byte random IVs for the body and the read token.
 - The browser authenticates both envelopes against the paste ID from the URL. It decrypts a random read token locally, sends only that token to the core, and gets the body ciphertext after the token matches its stored hash. Neither the password nor the URL fragment is sent to the core.
+- New pastes use 1000000 iterations, the ceiling the core accepts, so a stolen paste plus a stolen key still costs an expensive offline guess. The count is stored with the paste, so a paste made earlier keeps the count it was made with.
 
 ## Run
 
@@ -96,9 +97,9 @@ ciphertext   = AES-256-GCM(plaintext, iv, adata = pasteId)
 # core — no secrets needed; the database file is the only writable path
 PORT=8080 TTL_HOURS=24 DB_PATH=./paste.db MAX_DISK_MB=5120 node src/core.js
 
-# shortener
+# shortener — SHORTENER_KEY is required: 32 bytes as base64 or 64 hex characters
 PORT=8081 PUBLIC_URL=https://paste.example.com/s ALLOWED_ORIGIN=https://paste.example.com \
-  node src/shortener.js
+  SHORTENER_KEY="$(openssl rand -base64 32)" node src/shortener.js
 ```
 
 Set the core's `SHORTENER_URL` to enable automatic short link creation:
@@ -115,7 +116,9 @@ Pastes live in a SQLite database (`node:sqlite`, no dependency): WAL mode, a 32 
 
 Expiry is enforced twice: on access, and by a sweep every minute that deletes expired rows and then runs `incremental_vacuum` plus a WAL checkpoint, so the file shrinks as pastes die. Nothing survives its TTL.
 
-Short links live in their own SQLite database on the same `paste-data` volume, so recreating the shortener container no longer turns every shared code into a dead link. A short link redirects until its own TTL (168 hours by default, matching the paste lifetime) even if the paste behind it is gone. The mapping holds the paste key, so the file is written with owner-only permissions and one client may hold at most 200 live codes.
+Short links live in their own SQLite database on the same `paste-data` volume, so recreating the shortener container no longer turns every shared code into a dead link. A short link redirects until its own TTL (168 hours by default, matching the paste lifetime) even if the paste behind it is gone. The mapping holds the paste key, so the target is encrypted with AES-256-GCM under `SHORTENER_KEY` — a key that never lands on the volume — and the file is written with owner-only permissions. The shortener refuses to start without that key, and rows written before it was encrypted are dropped rather than left to fail.
+
+One client may hold at most 200 live codes (`MAX_IP_LINKS`) and the store holds 100000 (`MAX_LINKS`). Both count what is alive right now, not what a client ever created: an expired link frees its slot, whether it was swept or not.
 
 Backups are deliberately not part of this service. If you add one, it would outlive the TTL and keep ciphertext the service itself has already deleted.
 
@@ -168,7 +171,7 @@ The containers themselves already run `--read-only`, `--cap-drop ALL`, `--securi
 
 - Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 200000 (`MAX_PASTES`) and the database at `MAX_DISK_MB` (5120). The create form shows a live character count and the encrypted weight against that cap, measures the encoded request before sending, and refuses it locally with the size and the limit, so an oversized paste never reaches the server.
 - The create form caps an attached file at 256 KB, which encodes to roughly 466 KB of JSON — comfortably inside the 1 MiB request limit. One file per paste: the payload format holds a single `KHEPRI-FILE` block.
-- Core validates `iterations` between 100000 and 1000000; the client always sends 200000.
+- Core validates `iterations` between 100000 and 1000000; the client always sends 1000000.
 - Base62 codes default to 5 characters (`CODE_LEN` overrides). Creation API accepts lengths 3–12 and caps stored mappings at 100000 (`MAX_LINKS`), with 200 per client (`MAX_IP_LINKS`).
 - Rate limits: core 60 req/min/IP; shortener 120 req/min/IP. Rate-limit tables expire old entries and are bounded.
 
@@ -177,7 +180,7 @@ The containers themselves already run `--read-only`, `--cap-drop ALL`, `--securi
 `node --test` from the repository root runs `test/`: each suite spawns the real service on a loopback port and drives it over HTTP. No dependencies, no browser, about a second.
 
 - `test/api.test.js` — lifetime and read limits, the validation table, read proofs, the 1 MiB body cap (with and without `Content-Length`), the per-client quota, eviction when the store or the disk cap is full, survival across a restart, physical deletion of expired rows, and the page and asset routes.
-- `test/shortener.test.js` — which URLs may be shortened, the code length range and default, the `Origin` check and CORS preflight, and that resolving a link is repeatable.
+- `test/shortener.test.js` — which URLs may be shortened, the code length range and default, the `Origin` check and CORS preflight, that resolving a link is repeatable, that a link survives a restart, that the store is encrypted on disk, that another key cannot read it, and that the per-client quota counts live links only.
 
 ## What is deliberately absent
 

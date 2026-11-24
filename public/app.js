@@ -1,7 +1,10 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const ITERATIONS = 200000;
+// The server accepts 100000..1000000; the top of that range is what a stolen
+// paste plus a stolen key has to brute force, so new pastes use the ceiling.
+// Pastes created earlier keep the count they were made with.
+const ITERATIONS = 1000000;
 const MAX_FILE_BYTES = 256 * 1024;
 // Same ceiling as core.js MAX_BODY. The request is pure ASCII (base64url), so
 // string length and byte length agree and the check can run before sending.
