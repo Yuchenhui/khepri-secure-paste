@@ -32,11 +32,14 @@
   [hidden] { display: none !important; }
   body { margin: 0; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, sans-serif; }
   main { width: min(calc(100% - 48px), 56rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
-  .masthead { margin-bottom: 28px; }
+  .masthead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 12px; margin-bottom: 28px; }
   h1 { margin: 0; font-size: clamp(2.25rem, 5vw, 3.25rem); font-weight: 650; letter-spacing: -.04em; line-height: 1.08; }
-  .masthead p { max-width: 48ch; margin: 10px 0 0; color: var(--muted); }
+  .masthead p { grid-column: 1 / -1; max-width: 48ch; margin: 10px 0 0; color: var(--muted); }
   .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px -24px #18243566; }
   button, input, select, textarea { font: inherit; }
+  input[type="checkbox"] { appearance: none; flex: none; width: 16px; height: 16px; margin: 0; border: 1px solid var(--control); border-radius: 4px; background: var(--paper); accent-color: var(--accent); cursor: pointer; }
+  input[type="checkbox"]:checked { border-color: var(--accent); background: var(--accent) center / 12px 12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3 3 7-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  @media (forced-colors: active) { input[type="checkbox"] { appearance: auto; } }
   :where(button, input, select, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   a { color: var(--accent); text-underline-offset: .18em; }
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--accent); color: var(--paper); font-size: .875rem; font-weight: 650; text-decoration: none; white-space: nowrap; cursor: pointer; }
@@ -61,20 +64,30 @@
   @media (prefers-reduced-motion: reduce) { .bp-spinner { animation: none; } }
 
   .reader { max-width: 40rem; }
-  .unlock { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 20px; }
+  .unlock { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 14px 20px 20px; }
   .unlock .field { flex: 1 1 14rem; }
+  .short-lookup { --lookup-width: 15rem; position: relative; z-index: 1; margin-block-start: 10px; }
+  .short-lookup[open] { padding-inline-start: calc(var(--lookup-width) + 4px); }
+  .short-lookup summary { padding: 3px 10px; border-radius: 8px; background: var(--tint); box-shadow: inset 0 0 0 1px var(--line); color: var(--accent); font-size: .875rem; font-weight: 650; cursor: pointer; }
+  .short-lookup summary:hover { color: var(--accent-hover); box-shadow: inset 0 0 0 1px var(--control); }
+  .short-lookup form { position: absolute; inset-block-start: 50%; inset-inline-start: 0; translate: 0 -50%; display: flex; align-items: center; gap: 8px; width: var(--lookup-width); padding: 10px 12px; box-shadow: 0 12px 24px -8px #18243550, 0 3px 8px #18243526; }
+  .short-lookup form::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: -3px; width: 8px; height: 8px; transform: translateY(-50%) rotate(45deg); border: 1px solid var(--line); border-width: 1px 1px 0 0; background: var(--paper); pointer-events: none; }
+  .short-lookup .input { min-width: 0; padding-block: 10px 6px; font-family: "Cascadia Mono", Menlo, "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric: slashed-zero; }
   #body:not(:empty) { margin-top: 24px; }
   #body > .err { font-size: .875rem; }
-  .page-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
-  .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -6px -6px -6px 0; border-radius: 6px; color: var(--muted); }
+  .page-footer { display: flex; justify-content: flex-end; margin-top: 12px; padding-inline: clamp(12px, 2vw, 20px); }
+  .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
   .source-link svg { width: 20px; height: 20px; fill: currentColor; }
   .readout { overflow: hidden; }
-  .readout-life { padding: 10px 14px 0; }
+  .readout-life { padding: 10px 14px; }
   .readout-wrap { display: grid; }
   .readout-controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .readout-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: .875rem; cursor: pointer; color: var(--ink); }
-  .readout-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+  .readout-controls.text-controls { justify-content: flex-end; padding-block: 8px; border-top: 0; border-bottom: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-text); }
+  .text-controls .readout-toggle { color: inherit; }
+  .text-controls .readout-toggle input:not(:checked) { background: transparent; border-color: var(--editor-muted); }
+  .text-controls :focus-visible { outline-color: var(--editor-muted); }
   .readout-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; }
   .readout-bar h2 { margin: 0; font-size: .875rem; }
   .readout-source { display: flex; max-height: 65vh; overflow: auto; background: var(--editor); color: var(--editor-text); color-scheme: dark; font: .9375rem/1.65 var(--mono); }
@@ -85,17 +98,29 @@
   .file-card { display: grid; gap: 6px; padding: 20px; }
   .file-card p { margin: 0; }
   .file-name { font: 650 1.0625rem/1.4 var(--mono); overflow-wrap: anywhere; }
-  @media (max-width: 40rem) { .unlock { padding: 16px; } }
+  @media (max-width: 40rem) {
+    .unlock { padding: 10px 16px 16px; }
+    #go { margin-inline-start: auto; }
+    .short-lookup[open] { padding-inline-start: 0; }
+    .short-lookup form { inset-block-start: calc(100% + 4px); inset-inline: auto 0; translate: none; width: min(18rem, calc(100vw - 48px)); }
+    .short-lookup form::before { inset-block-start: -3px; inset-inline-end: 60px; transform: rotate(45deg); border-width: 1px 0 0 1px; }
+  }
 </style>
 </head>
 <body>
 <main class="reader">
   <header class="masthead">
     <h1>Read paste</h1>
+    <details id="shortLookupMenu" class="short-lookup" hidden>
+      <summary>Open by code</summary>
+      <form id="shortLookup" class="panel">
+        <input id="shortCode" type="text" class="input" placeholder="Short code" aria-label="Short code" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+        <button class="button" type="submit">Open</button>
+      </form>
+    </details>
     <p>Decrypt this paste in your browser.</p>
   </header>
-
-  <div class="unlock panel">
+  <div id="unlock" class="unlock panel">
     <div class="field">
       <label for="pw">Password <span class="optional">(if set)</span></label>
       <input id="pw" type="password" class="input" placeholder="Leave blank if none was set" autocomplete="off">

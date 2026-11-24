@@ -9,6 +9,7 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 const FILE_MARKER = 'KHEPRI-FILE 1';
 const SHORTENER = '__SHORTENER__';
 const MAX_TTL_S = Number('__MAX_TTL_S__');
+let createErrorTimer;
 const TTL_CHOICES = [
   { seconds: 3600, label: '1 hour' },
   { seconds: 6 * 3600, label: '6 hours' },
@@ -37,8 +38,17 @@ function fillExpiry() {
 }
 fillExpiry();
 
+const lengthSlider = $('len');
+function updateLengthLabel() {
+  $('lenValue').value = lengthSlider.value;
+}
+lengthSlider.addEventListener('input', updateLengthLabel);
+window.addEventListener('pageshow', updateLengthLabel);
+
 const editor = $('t');
 const editorNumbers = $('editorNumbers');
+const editorSource = editor.parentElement;
+const autoWrap = $('autoWrap');
 let editorLineCount = 1;
 
 function syncLineScroll() {
@@ -55,9 +65,46 @@ function updateLineNumbers() {
   syncLineScroll();
 }
 
+function updateWrap() {
+  editor.wrap = autoWrap.checked ? 'soft' : 'off';
+  editorSource.classList.toggle('wrap', autoWrap.checked);
+}
+
+const settingsKey = 'khepri:create-settings';
+const settingsControls = ['ttl', 'reads', 'pin', 'len', 'autoWrap'].map($);
+
+try {
+  const saved = JSON.parse(localStorage.getItem(settingsKey));
+  for (const control of settingsControls) {
+    const value = saved?.[control.id];
+    if (control.type === 'checkbox') {
+      if (typeof value === 'boolean') control.checked = value;
+    } else if (control.type === 'range') {
+      if (Number.isInteger(value) && value >= Number(control.min) && value <= Number(control.max)) {
+        control.value = String(value);
+      }
+    } else if (Array.from(control.options).some((option) => option.value === value)) {
+      control.value = value;
+    }
+  }
+} catch { /* Invalid or unavailable storage leaves the form defaults in place. */ }
+
+updateLengthLabel();
+updateWrap();
+for (const control of settingsControls) {
+  control.addEventListener('input', () => {
+    const settings = Object.fromEntries(settingsControls.map((field) => [
+      field.id, field.type === 'checkbox' ? field.checked : field.type === 'range' ? field.valueAsNumber : field.value,
+    ]));
+    try { localStorage.setItem(settingsKey, JSON.stringify(settings)); }
+    catch { /* The form still works when the browser blocks storage. */ }
+  });
+}
+
 editor.addEventListener('input', () => { updateLineNumbers(); updateSize(); });
 editor.addEventListener('scroll', syncLineScroll);
-window.addEventListener('pageshow', () => { updateLineNumbers(); updateSize(); });
+autoWrap.addEventListener('change', updateWrap);
+window.addEventListener('pageshow', () => { updateWrap(); updateLineNumbers(); updateSize(); });
 
 function b64u(buf) {
   const bytes = new Uint8Array(buf);
@@ -156,21 +203,21 @@ function setAttached(file) {
   attached = file;
   $('fileState').hidden = !file;
   $('file').value = '';
-  document.querySelector('.editor-source').hidden = Boolean(file);
+  editorSource.hidden = Boolean(file);
+  $('wrapLabel').hidden = Boolean(file);
   editor.disabled = Boolean(file);
   if (!file) { updateSize(); return; }
   $('fileName').textContent = file.name;
   $('fileMeta').textContent = formatBytes(file.size) + (file.type ? ' · ' + file.type : '');
-  $('createError').textContent = '';
+  setCreateError('');
   updateSize();
 }
 
 function attachFile(file) {
   if (!file) return;
   if (file.size > MAX_FILE_BYTES) {
-    $('createError').textContent =
-      '“' + file.name + '” is ' + file.size.toLocaleString('en-US') + ' B; the limit is ' +
-      MAX_FILE_BYTES.toLocaleString('en-US') + ' B (' + formatBytes(MAX_FILE_BYTES) + ').';
+    setCreateError('“' + file.name + '” is ' + file.size.toLocaleString('en-US') + ' B; the limit is ' +
+      MAX_FILE_BYTES.toLocaleString('en-US') + ' B (' + formatBytes(MAX_FILE_BYTES) + ').');
     $('file').value = '';
     return;
   }
@@ -184,8 +231,8 @@ function attachFrom(files) {
   if (list.length === 0) return;
   if (list.length > 1) {
     const extra = list.length - 1;
-    $('createError').textContent = 'One file per paste. Share ' +
-      (extra === 1 ? 'the other file' : 'the other ' + extra + ' files') + ' as separate pastes.';
+    setCreateError('One file per paste. Share ' +
+      (extra === 1 ? 'the other file' : 'the other ' + extra + ' files') + ' as separate pastes.');
     $('file').value = '';
     return;
   }
@@ -339,6 +386,7 @@ $('showQr').onclick = async () => {
   if (!url || url === '#') return;
   try {
     await loadQrEncoder();
+    if ($('openUrl').href !== url) return;
     const qr = qrcode(0, 'M');
     qr.addData(url);
     qr.make();
@@ -346,7 +394,7 @@ $('showQr').onclick = async () => {
     box.hidden = false;
     button.setAttribute('aria-expanded', 'true');
   } catch {
-    $('createError').textContent = 'Could not load the QR encoder; the link still works.';
+    if ($('openUrl').href === url) setCreateError('Could not load the QR encoder; the link still works.');
   }
 };
 
@@ -354,32 +402,53 @@ async function shorten(longUrl, len) {
   const r = await fetch(SHORTENER + '/shorten', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: longUrl, len }),
+    signal: AbortSignal.timeout(5000),
   });
   const body = await r.text();
   if (!r.ok) throw new Error('HTTP ' + r.status + (body ? ' — ' + body.trim() : ''));
   return body.trim();
 }
 
+function setCreateError(message) {
+  clearTimeout(createErrorTimer);
+  const dismissFocused = document.activeElement === $('dismissCreateError');
+  $('createError').textContent = message;
+  const countdown = $('createErrorCountdown');
+  if (!message) {
+    countdown.textContent = '';
+    if (dismissFocused) $('go').focus({ preventScroll: true });
+    return;
+  }
+  const deadline = Date.now() + 5000;
+  function tick() {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      setCreateError('');
+      return;
+    }
+    const seconds = Math.ceil(remaining / 1000);
+    countdown.textContent = seconds + 's';
+    createErrorTimer = setTimeout(tick, remaining - (seconds - 1) * 1000);
+  }
+  tick();
+}
+
+$('dismissCreateError').onclick = () => setCreateError('');
+
 $('go').onclick = async () => {
   const btn = $('go');
   const file = attached;
-  if (!file && !$('t').value) {
-    $('t').focus();
-    $('createError').textContent = 'Write something, or attach a file.';
+  if (!file && !editor.value) {
+    editor.focus();
+    setCreateError('Write something, or attach a file.');
     return;
   }
 
   btn.disabled = true;
   btn.setAttribute('aria-busy', 'true');
-  btn.textContent = 'Encrypting';
+  btn.textContent = 'Creating link';
   btn.prepend(makeSpinner());
-  $('out').hidden = true;
-  $('qrBox').hidden = true;
-  $('showQr').setAttribute('aria-expanded', 'false');
-  $('longWrap').open = false;
-  $('createError').textContent = '';
-  setState('');
-  setNote('');
+  setCreateError('');
 
   try {
     const id = [...crypto.getRandomValues(new Uint8Array(8))]
@@ -420,29 +489,34 @@ $('go').onclick = async () => {
     if (j.error) throw new Error(j.error);
 
     const longUrl = location.origin + '/?' + id + '#' + b64u(keyBytes);
+    let href = longUrl;
+    let code;
+    let shortError = '';
+    if (SHORTENER) {
+      try {
+        const short = await shorten(longUrl, Number($('len').value));
+        code = new URL(short).pathname.split('/').pop();
+        href = short;
+      } catch (e) {
+        shortError = 'Shorten failed — using the long link. ' + e.message;
+      }
+    }
+
+    $('qrBox').hidden = true;
+    $('showQr').setAttribute('aria-expanded', 'false');
+    $('longWrap').open = false;
     $('longUrl').href = longUrl;
     $('longUrl').textContent = longUrl;
     $('longUrl').title = longUrl;
 
-    setMain(longUrl);
+    setMain(href, code);
+    setState(shortError, Boolean(shortError));
+    setNote(code && !password
+      ? 'No password set: the shortener holds the key from this link. Set a password if the content matters.'
+      : '', true);
     $('out').hidden = false;
-
-    if (!SHORTENER) return;
-
-    setState('Shortening');
-    try {
-      const len = Number($('len').value);
-      const short = await shorten(longUrl, len);
-      setMain(short, new URL(short).pathname.split('/').pop());
-      setState('');
-      if (!password) {
-        setNote('No password set: the shortener holds the key from this link. Set a password if the content matters.', true);
-      }
-    } catch (e) {
-      setState('Shorten failed — using the long link. ' + e.message, true);
-    }
   } catch (e) {
-    $('createError').textContent = 'Could not create the paste: ' + e.message;
+    setCreateError('Could not create the paste: ' + e.message);
   } finally {
     btn.disabled = false;
     btn.removeAttribute('aria-busy');

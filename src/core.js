@@ -180,7 +180,10 @@ function renderAppScript(src) {
 const QR_PATH = loadScript('vendor/qrcode.js', { cache: 'public, max-age=31536000, immutable' });
 const qrPath = QR_PATH;
 SCRIPT_PATHS['app.js'] = loadScript('app.js', { render: renderAppScript, cache: 'public, max-age=31536000, immutable' });
-SCRIPT_PATHS['view.js'] = loadScript('view.js', { cache: 'public, max-age=31536000, immutable' });
+SCRIPT_PATHS['view.js'] = loadScript('view.js', {
+  render: (src) => src.replace("'__READER_SHORTENER__'", () => JSON.stringify(SHORTENER)),
+  cache: 'public, max-age=31536000, immutable',
+});
 
 function serveHtml(res, file) {
   fs.readFile(path.join(PUBLIC_DIR, file), 'utf8', (err, source) => {

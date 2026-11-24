@@ -5,6 +5,7 @@
 const id = location.search.slice(1);
 const frag = location.hash.slice(1);
 const FILE_MARKER = 'KHEPRI-FILE 1';
+const SHORT_LINK_BASE = '__READER_SHORTENER__';
 
 const $ = (x) => document.getElementById(x);
 
@@ -105,18 +106,13 @@ function show(text, cls) {
   b.replaceChildren(p);
 }
 
-// A labelled checkbox that reports its state in text: the value can be read
-// from the label alone by a screen reader or a screenshot.
-function wrapToggleFor(setWrap, checked) {
+function wrapToggleFor(setWrap) {
   const box = document.createElement('input');
   box.type = 'checkbox';
   const label = document.createElement('label');
   label.className = 'readout-toggle';
-  const note = document.createElement('span');
-  const sync = () => { box.checked = checked; note.textContent = 'Auto wrap: ' + (checked ? 'on' : 'off'); };
-  sync();
-  box.onchange = () => { checked = !checked; sync(); setWrap(checked); };
-  label.append(box, note);
+  box.onchange = () => setWrap(box.checked);
+  label.append(box, 'Auto wrap');
   return label;
 }
 
@@ -245,7 +241,7 @@ async function decrypt() {
       life.className = 'readout-life note';
       life.append(lifetimeNote(d));
       fileCard.append(life);
-      $('body').replaceChildren(fileCard);
+      showReadout(fileCard, fileCard.querySelector('a[download]'));
       return;
     }
 
@@ -295,21 +291,20 @@ async function decrypt() {
     const heading = document.createElement('h2');
     heading.textContent = 'Decrypted content';
     bar.append(heading, copy);
-    readout.append(source);
 
     const controls = document.createElement('div');
-    controls.className = 'readout-controls';
+    controls.className = 'readout-controls text-controls';
     controls.append(wrapToggleFor((on) => {
       setWrap(on);
       source.classList.toggle('wrap', on);
-    }, false), copy);
-    readout.append(controls);
+    }));
+    readout.append(bar, controls, source);
 
     const life = document.createElement('p');
     life.className = 'readout-life note';
     life.append(lifetimeNote(d));
     readout.append(life);
-    $('body').replaceChildren(readout);
+    showReadout(readout, source);
   } catch {
     show('Wrong password or corrupted content.', 'err');
   } finally {
@@ -319,6 +314,32 @@ async function decrypt() {
   }
 }
 
+function showReadout(readout, focusTarget) {
+  const unlock = $('unlock');
+  const moveFocus = unlock.contains(document.activeElement);
+  $('body').replaceChildren(readout);
+  $('pw').value = '';
+  unlock.hidden = true;
+  if (moveFocus) focusTarget.focus({ preventScroll: true });
+}
+
 $('go').onclick = decrypt;
 $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') decrypt(); });
 $('pw').focus();
+
+if (SHORT_LINK_BASE) {
+  const form = $('shortLookup');
+  const input = $('shortCode');
+  $('shortLookupMenu').hidden = false;
+  input.addEventListener('input', () => input.setCustomValidity(''));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const code = input.value.trim();
+    if (!/^[A-Za-z0-9]{3,12}$/.test(code)) {
+      input.setCustomValidity('Enter a 3–12 character code using letters and digits.');
+      input.reportValidity();
+      return;
+    }
+    location.assign(SHORT_LINK_BASE + '/' + code);
+  });
+}
