@@ -33,7 +33,7 @@ async function startCore(env = {}) {
   // between two starts (that is how the restart tests work).
   const dir = env.DB_PATH ? null : fs.mkdtempSync(path.join(os.tmpdir(), 'paste-test-'));
   const dbPath = env.DB_PATH || path.join(dir, 'paste.db');
-  const child = spawn(process.execPath, ['core.js'], {
+  const child = spawn(process.execPath, ['src/core.js'], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port), TTL_HOURS: '24', TRUST_PROXY: '1', DB_PATH: dbPath, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],

@@ -26,6 +26,9 @@ const MAX_READS = 20;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'paste.db');
 const MAX_DISK_MB = Number(process.env.MAX_DISK_MB || 5120);
 if (!Number.isInteger(MAX_DISK_MB) || MAX_DISK_MB < 1) throw new Error('MAX_DISK_MB must be a positive integer');
+// Sources live in src/, the pages in public/ one level up; PUBLIC_DIR keeps
+// the same layout inside the image (src/ and public/ under /app).
+const PUBLIC_DIR = process.env.PUBLIC_DIR || path.join(__dirname, '..', 'public');
 const PASTE_ID = /^[0-9a-f]{16}$/;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const IV = /^[A-Za-z0-9_-]{16}$/;
@@ -160,7 +163,7 @@ const ASSETS = new Map();
 const SCRIPT_PATHS = {};
 
 function loadScript(file, { render, cache }) {
-  const source = fs.readFileSync(path.join(__dirname, 'public', file), 'utf8');
+  const source = fs.readFileSync(path.join(PUBLIC_DIR, file), 'utf8');
   const body = render ? render(source) : source;
   const assetPath = '/' + hashedName(file, body);
   ASSETS.set(assetPath, { body, cache });
@@ -180,7 +183,7 @@ SCRIPT_PATHS['app.js'] = loadScript('app.js', { render: renderAppScript, cache: 
 SCRIPT_PATHS['view.js'] = loadScript('view.js', { cache: 'public, max-age=31536000, immutable' });
 
 function serveHtml(res, file) {
-  fs.readFile(path.join(__dirname, 'public', file), 'utf8', (err, source) => {
+  fs.readFile(path.join(PUBLIC_DIR, file), 'utf8', (err, source) => {
     if (err) return send(res, 404, { error: 'not found' });
     const body = source
       .replace('src="/app.js"', 'src="' + SCRIPT_PATHS['app.js'] + '"')
