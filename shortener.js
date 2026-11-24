@@ -5,7 +5,7 @@ const { randomInt } = require('node:crypto');
 const { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJson } = require('./http-util');
 
 const PORT = Number(process.env.PORT || 8080);
-const DEFAULT_LENGTH = Number(process.env.CODE_LEN || 4);
+const DEFAULT_LENGTH = Number(process.env.CODE_LEN || 5);
 const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
 const MAX_LINKS = 4096;
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

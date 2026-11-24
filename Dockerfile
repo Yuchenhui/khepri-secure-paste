@@ -8,7 +8,9 @@ LABEL org.opencontainers.image.source="https://github.com/Yuchenhui/khepri-secur
 ENV NODE_ENV=production
 WORKDIR /app
 COPY core.js shortener.js http-util.js ./
-COPY public/new.html public/view.html ./public/
+COPY public/new.html public/view.html public/app.js public/view.js ./public/
+COPY public/vendor/qrcode.js ./public/vendor/
+RUN mkdir -p /data && chown node:node /data
 USER node
 
 HEALTHCHECK --interval=30s --timeout=4s --start-period=5s \

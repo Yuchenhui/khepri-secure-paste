@@ -41,7 +41,18 @@ A paste can be locked to the IP of the first successful read-proof submission. A
 Good uses: a fixed-IP server, a specific office egress, a machine you control.
 Bad uses: a phone, a home broadband connection, anything that changes network.
 
-Opening a page or entering a wrong password does not bind the IP or burn the paste. If the creator successfully reads it first, the creator's IP counts. With burn enabled, the ciphertext is removed atomically when released; a response lost after that point cannot be retried.
+Opening a page or entering a wrong password does not bind the IP or consume a read. If the creator successfully reads it first, the creator's IP counts. With a single-read paste the ciphertext is removed atomically when released; a response lost after that point cannot be retried.
+
+## Lifetime and read limit
+
+Each paste carries its own lifetime and read limit, chosen in the create form:
+
+- **Expiry** — 1 hour, 6 hours, 24 hours, 3 days or 7 days. The form renders only the choices the server accepts: `TTL_HOURS` is the ceiling (24 in code, 168 in the deployment, so seven days is the maximum), and the longest allowed choice stays selected.
+- **Read limit** — one read (the paste is deleted when the body is released), 3, 5, or no limit. The default is a single read.
+
+The create API takes `ttl` in seconds and `reads` as an integer (`0` means no limit, at most 20). Both are optional: without them the core uses the full `TTL_HOURS` lifetime and treats `burn: true` as a single read, which is what older clients send. The core rejects a `ttl` below 60 seconds or above the env ceiling with `400 invalid expiry`, and a `reads` outside `0..20` with `400 invalid read limit`.
+
+`GET /api/paste/<id>` returns `reads` and `expires` alongside the read token, so the reading page can warn before consuming a single-read paste and show the remaining lifetime. Neither value is secret; both come from the ciphertext's metadata, not from its content.
 
 ### Proxy configuration
 
@@ -69,8 +80,8 @@ ciphertext   = AES-256-GCM(plaintext, iv, adata = pasteId)
 ## Run
 
 ```bash
-# core — no secrets needed, nothing to configure
-PORT=8080 TTL_HOURS=24 node core.js
+# core — no secrets needed; the database file is the only writable path
+PORT=8080 TTL_HOURS=24 DB_PATH=./paste.db MAX_DISK_MB=5120 node core.js
 
 # shortener
 PORT=8081 PUBLIC_URL=https://paste.example.com/s ALLOWED_ORIGIN=https://paste.example.com \
@@ -87,11 +98,17 @@ Both processes bind `127.0.0.1`. The Linux Docker deployment uses host networkin
 
 ## Storage
 
-Both services keep state in memory; restart drops all pastes and short links. A short link does not consume the paste and can redirect until its own TTL (24 hours by default), even if the paste is already gone.
+Pastes live in a SQLite database (`node:sqlite`, no dependency): WAL mode, a 32 MiB page cache, `synchronous = NORMAL`, and a hard page limit so the file cannot outgrow `MAX_DISK_MB` (5 GiB by default). It holds ciphertext and the same fields the memory store used to hold — never a key, never a password, never plaintext. A restart keeps every paste that has not expired, and the deployment keeps the file on the `paste-data` volume, so recreating a container no longer drops anything.
+
+Expiry is enforced twice: on access, and by a sweep every minute that deletes expired rows and then runs `incremental_vacuum` plus a WAL checkpoint, so the file shrinks as pastes die. Nothing survives its TTL.
+
+Short links stay in memory: recreating the shortener container drops them, and a short link redirects until its own TTL (24 hours by default) even if the paste behind it is gone.
+
+Backups are deliberately not part of this service. If you add one, it would outlive the TTL and keep ciphertext the service itself has already deleted.
 
 ## Small files
 
-The create form can attach one file up to 256 KB. The browser reads the bytes, base64-encodes them, and puts them in the same encrypted text paste the service already stores:
+The create form can attach one file per paste, up to 256 KB; a second file is refused rather than silently replacing the first. The browser reads the bytes, base64-encodes them, and puts them in the same encrypted text paste the service already stores:
 
 ```
 KHEPRI-FILE 1
@@ -101,13 +118,51 @@ KHEPRI-FILE 1
 
 The reading page recognises the marker, rebuilds the file in the browser and offers it as a download; a file that does not carry the marker still renders as text, and an older reader just shows the marker plus base64. The server is untouched: it stores ciphertext only, and a file costs roughly 1.78× its size in the create request (base64 of the payload, then base64url of the ciphertext). For anything above 256 KB, use an actual file transfer.
 
+## QR code
+
+The create page can render the link it currently shows as a QR code, for handing it to a phone. The encoder is a vendored MIT build of `qrcode-generator`, pinned in `public/vendor/README.md`; the core serves it at `/vendor/qrcode.js` with a one-day cache and the page fetches it only when the button is pressed, so a paste that never shows a QR loads exactly the bytes it did before.
+
+The code encodes whichever link is displayed: with the shortener enabled that is the short link, which still contains the key. A displayed QR is as sensitive as the link itself.
+
+## Edge limits (nginx)
+
+`deploy/paste.vantolab.com.conf` is the only network-facing layer; the app's own limiter (60 req/min/IP) sits behind it. The vhost adds:
+
+- `limit_req` 120 req/min per IP with a burst of 40 (20 on `/s/`) and `limit_conn` 16 concurrent connections (8 on `/s/`), both answering `429`. This caps bursts before Node sees them and stops a slow reader from parking many sockets.
+- 10-second header, body and send timeouts. Nothing here streams or long-polls.
+- `Strict-Transport-Security` (one year), `X-Frame-Options: DENY`, `frame-ancestors 'none'`, and a `Content-Security-Policy` of `default-src 'none'` with `script-src 'self'`, `style-src 'unsafe-inline'`, `connect-src 'self'`. Each page loads one same-origin script (`/app.js`, `/view.js`) and one inline stylesheet, so no inline script is allowed at all. Styles stay inline because they are static and carry no data.
+- `X-Robots-Tag: noindex, nofollow, noarchive` and `Cross-Origin-Resource-Policy: same-origin`: a paste URL stays out of search indexes and cannot be embedded by another site, so a link cannot be probed from a third-party page.
+- TLS session tickets off and a shared session cache, so a captured session cannot be resumed after a key leak.
+- `405` for anything other than `GET`, `HEAD`, `POST` or `OPTIONS`.
+
+## Abuse model
+
+The core never holds a key, so it cannot read, classify or block a payload: content filtering is impossible by construction, not a missing feature. What is bounded instead is the shape of the service:
+
+- 1024 pastes and 5 GiB of ciphertext on disk, 1 MiB per request, 256 KB per attached file, 20 reads, 7 days at most. A flood cannot grow the store past the cap, and every paste dies at its TTL.
+- 2 MiB and 32 pastes per client: a single source cannot fill the store. Creating past a full store drops the oldest paste instead of refusing every write, so one client's traffic cannot make the service read-only for others.
+- 60 create/read requests per minute per IP at the app, 120/min with a burst cap at nginx, 16 concurrent connections per IP.
+- No accounts, no logs of requests, no disk writes, nothing to hand over beyond ciphertext that expires. The only thing written to the container log is one line per active minute with counters and store gauges: `creates`, `reads`, `rejected`, `evicted`, `expired`, `pastes`, `bytes`, `clients`. No address, no paste id, no content.
+- The shortener only accepts URLs under its own host, so it cannot be used as a general-purpose shortener for third-party links.
+
+On the reading side, a decrypted file is always delivered as `application/octet-stream` with a sanitised filename, regardless of the MIME type the sender declared, so a paste can never be executed as HTML or SVG in the site's origin.
+
+The containers themselves already run `--read-only`, `--cap-drop ALL`, `--security-opt no-new-privileges`, with 256 MB of memory and 128 pids. Host-level items — firewall, SSH, keeping nginx patched — are outside this repository.
+
 ## Limits
 
-- Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 1024 and accounts for up to 16 MiB of payload and metadata.
-- The create form caps an attached file at 256 KB, which encodes to roughly 466 KB of JSON — comfortably inside the 1 MiB request limit.
+- Core accepts up to 1 MiB of JSON per create request, including ciphertext encoding; it caps stored entries at 1024 (`MAX_PASTES`) and the database at `MAX_DISK_MB` (5120). The create form shows a live character count and the encrypted weight against that cap, measures the encoded request before sending, and refuses it locally with the size and the limit, so an oversized paste never reaches the server.
+- The create form caps an attached file at 256 KB, which encodes to roughly 466 KB of JSON — comfortably inside the 1 MiB request limit. One file per paste: the payload format holds a single `KHEPRI-FILE` block.
 - Core validates `iterations` between 100000 and 1000000; the client always sends 200000.
-- Base62 codes default to 4 characters. Creation API accepts lengths 3–12 and caps stored mappings at 4096.
+- Base62 codes default to 5 characters (`CODE_LEN` overrides). Creation API accepts lengths 3–12 and caps stored mappings at 4096.
 - Rate limits: core 60 req/min/IP; shortener 120 req/min/IP. Rate-limit tables expire old entries and are bounded.
+
+## Tests
+
+`node --test` from the repository root runs `test/`: each suite spawns the real service on a loopback port and drives it over HTTP. No dependencies, no browser, about a second.
+
+- `test/api.test.js` — lifetime and read limits, the validation table, read proofs, the 1 MiB body cap (with and without `Content-Length`), the per-client quota, eviction when the store or the disk cap is full, survival across a restart, physical deletion of expired rows, and the page and asset routes.
+- `test/shortener.test.js` — which URLs may be shortened, the code length range and default, the `Origin` check and CORS preflight, and that resolving a link is repeatable.
 
 ## What is deliberately absent
 
