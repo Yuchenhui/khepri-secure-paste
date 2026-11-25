@@ -57,14 +57,18 @@
   .input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--control); border-radius: 8px; background: var(--paper); color: var(--ink); }
   ::placeholder { color: var(--muted); opacity: 1; }
   .pw-wrap { position: relative; }
-  .pw-wrap .input { padding-inline-end: 76px; }
+  .pw-wrap .input { padding-inline-end: 108px; }
   .pw-action { position: absolute; inset-block-start: 50%; inset-inline-end: 4px; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--control); cursor: pointer; }
-  .pw-action:hover { background: var(--tint); color: var(--accent); }
+  .pw-action:hover:not(:disabled) { background: var(--tint); color: var(--accent); }
   .pw-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pw-action:disabled { opacity: .4; cursor: default; }
   .pw-action svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  #pwGen { inset-inline-end: 38px; }
-  #pwCopy { inset-inline-end: 4px; }
-  .pw-note { margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.5; }
+  #pwGen { inset-inline-end: 72px; }
+  #pwCopy { inset-inline-end: 38px; }
+  #pwShow { inset-inline-end: 4px; }
+  /* The note is two lines tall whether or not it has text, so the panel never
+     changes height and the page does not jump. */
+  .pw-note { min-height: 2.25rem; margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.5; }
   .note { margin: 0; font-size: .875rem; color: var(--muted); }
   .note--warn { color: var(--warning); }
   .err { margin: 0; color: var(--danger); }
@@ -215,9 +219,13 @@
           <button id="pwGen" class="pw-action" type="button" title="Generate a random password" aria-label="Generate a random password">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
           </button>
-          <button id="pwCopy" class="pw-action" type="button" title="Copy password" aria-label="Copy password" hidden>
+          <button id="pwCopy" class="pw-action" type="button" title="Copy password" aria-label="Copy password" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </button>
+          <button id="pwShow" class="pw-action" type="button" title="Show password" aria-label="Show password">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
           </button>
         </div>
         <p id="pwNote" class="pw-note" role="status"></p>
