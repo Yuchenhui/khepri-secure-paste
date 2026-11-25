@@ -268,7 +268,7 @@ editorBox.addEventListener('drop', (e) => {
 
 async function deriveKey(password, salt, keyBytes) {
   const passwordBytes = new TextEncoder().encode(password);
-  // PrivateBin construction: random key bytes with the password appended.
+  // The key material is random key bytes with the password appended.
   const material = new Uint8Array(keyBytes.length + passwordBytes.length);
   material.set(keyBytes, 0);
   material.set(passwordBytes, keyBytes.length);
