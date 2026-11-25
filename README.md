@@ -26,6 +26,8 @@ Running at https://paste.vantolab.com/.
   it is read.
 - An optional lock to the first reader's IP.
 - Short links (`/s/XXXXX`), because the long link is nearly 90 characters.
+- Every failure says what happened in words: a wrong password, a paste that
+  expired, a code that resolves to nothing. No raw status codes, no JSON.
 
 ## How it works
 
@@ -41,6 +43,8 @@ at rest under `SHORTENER_KEY`.
 
 ## Running it
 
+From source, no build step:
+
 ```bash
 # core
 PORT=8080 TTL_HOURS=24 DB_PATH=./paste.db MAX_DISK_MB=5120 node src/core.js
@@ -54,7 +58,7 @@ Point the core at the shortener with `SHORTENER_URL` to get short links.
 `deploy/deploy.sh` builds the image, runs both containers and installs the
 nginx vhost.
 
-Or straight from Docker Hub:
+Or straight from Docker Hub — the paste service alone:
 
 ```bash
 docker run -d --name khepri -p 8080:8080 \
@@ -82,9 +86,10 @@ hand out short links.
 ## Versions
 
 A release is one tag: the base version, the minute it was built and the commit
-it came from, for example `1.0.0-20261125-1207-3dec6e1`. Pull `latest` for the
+it came from, for example `1.0.0-20261125-1546-2d9df2b`. Pull `latest` for the
 newest one. The same string is used as the git tag, so an image and a commit
-always name the same build.
+always name the same build. The current release is
+`1.0.0-20261125-1546-2d9df2b`, running at paste.vantolab.com.
 
 ## Limits
 
@@ -103,6 +108,9 @@ six hours. Expired pastes are swept out every minute.
   keys; its database is encrypted with `SHORTENER_KEY`, which stays on the host
   and never touches the data volume, so neither volume holds anything readable
   on its own.
+- Browsers get an error page that explains what happened; API clients get a
+  short reason code. The page never says more than "nothing here", so probing
+  addresses learns nothing about what used to exist.
 - No accounts, no request logs, no backups. Everything expires.
 
 ## Layout
