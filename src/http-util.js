@@ -23,16 +23,23 @@ function createRateLimit(limit) {
   const windowMs = 60000;
   const maxClients = 4096;
   const clients = new Map();
+  let refused = 0;
   setInterval(() => {
     const now = Date.now();
     for (const [ip, bucket] of clients) if (bucket.expires <= now) clients.delete(ip);
+    // A full map refuses new clients outright; without this the only symptom is
+    // a 429 nobody can explain. One line a minute at most, and only then.
+    if (refused) {
+      console.log(JSON.stringify({ at: new Date().toISOString(), rateLimitRefused: refused, clients: clients.size }));
+      refused = 0;
+    }
   }, windowMs).unref();
 
   return (ip) => {
     const now = Date.now();
     const bucket = clients.get(ip);
     if (bucket && bucket.expires > now) return ++bucket.count <= limit;
-    if (!bucket && clients.size >= maxClients) return false;
+    if (!bucket && clients.size >= maxClients) { refused += 1; return false; }
     clients.set(ip, { count: 1, expires: now + windowMs });
     return true;
   };

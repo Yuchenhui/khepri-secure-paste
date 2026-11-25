@@ -55,8 +55,11 @@ PORT=8081 PUBLIC_URL=https://paste.example.com/s ALLOWED_ORIGIN=https://paste.ex
 ```
 
 Point the core at the shortener with `SHORTENER_URL` to get short links.
-`deploy/deploy.sh` builds the image, runs both containers and installs the
-nginx vhost.
+`deploy/deploy.sh` stages the code under `/opt/paste/releases/<sha>/`,
+bind-mounts it over `/app/src` and `/app/public`, recreates both containers and
+installs the nginx vhost. The image carries only the Node runtime, so an
+ordinary deploy never rebuilds it, and a rollback is a re-run with
+`--sha <older rev>`.
 
 Or straight from Docker Hub — the paste service alone:
 

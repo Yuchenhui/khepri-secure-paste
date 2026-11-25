@@ -433,11 +433,14 @@ setInterval(() => {
   try {
     for (const row of qExpired.all(now)) if (dropPaste(row.id)) expired += 1;
     stats.expired += expired;
+    // Every minute, not only when something expired: a quiet store would
+    // otherwise carry a WAL that grows with traffic and never gets truncated,
+    // because nothing else ever checkpoints it.
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     if (expired) {
       // Bounded on purpose: an unbounded vacuum would walk every free page and
       // stall the single-threaded event loop. 256 pages is 1 MiB per minute.
       db.exec('PRAGMA incremental_vacuum(256)');
-      db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     }
   } catch (err) {
     console.error('sweep failed:', err.message);
