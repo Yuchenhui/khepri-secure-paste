@@ -595,7 +595,10 @@ $('go').onclick = async () => {
         code = new URL(short).pathname.split('/').pop();
         href = short;
       } catch (e) {
+        // The paste is already safe; only the short code is missing. Say so in
+        // the same card as every other message instead of a small line below.
         shortError = 'No short link — ' + e.message + '.';
+        setCreateError('The paste is ready, but there is no short link — ' + e.message + '.');
       }
     }
 
@@ -607,7 +610,7 @@ $('go').onclick = async () => {
     $('longUrl').title = longUrl;
 
     setMain(href, code);
-    setState(shortError, Boolean(shortError));
+    // The toast already said it; the result card stays about the link itself.
     setNote(code && !password
       ? 'No password set: the shortener holds the key from this link. Set a password if the content matters.'
       : '', true);

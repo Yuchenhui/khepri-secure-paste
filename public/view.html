@@ -86,7 +86,7 @@
      pixels wide and sits beside the title, in the masthead's second column.
      The message is out of the flow: an error never grows the page. */
   .lookup { position: relative; display: flex; align-items: center; gap: 6px; margin-block-start: 8px; padding: 6px; border-radius: 10px; }
-  .lookup .input { width: 11ch; min-width: 0; min-height: 36px; padding: 6px 10px; }
+  .lookup .input { width: 13ch; min-width: 0; min-height: 36px; padding: 6px 10px; }
   .lookup .button { min-height: 36px; padding: 6px 12px; }
   /* Every message on the site is the same thing: a card floating at the top of
      the page. The lookup one is anchored to its own row, because it explains
@@ -107,6 +107,9 @@
     background: var(--danger);
     clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
   }
+  /* Progress reads as a status, not a fault: no mark, no red. */
+  .read-feedback:has(#readError[data-tone="neutral"])::before { display: none; }
+  #readError[data-tone="neutral"] #readErrorTitle { color: var(--muted); font-weight: 550; }
   #readError { flex: 1; min-width: 0; margin: 0; font-size: .875rem; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #readErrorTitle { font-weight: 650; }
   #readErrorBody { color: var(--muted); }

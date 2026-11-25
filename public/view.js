@@ -112,7 +112,10 @@ async function missingPaste(status) {
 
 // One message style for the whole site: a card floating at the top of the
 // page, with a warning mark and a dismiss button. It never moves the page.
-function setReadError(title, message) {
+// The card speaks in three voices: neutral for progress, danger for a failure.
+// Progress is not a warning, and the alert mark only belongs to a failure.
+function setReadError(title, message, tone = 'danger') {
+  $('readError').dataset.tone = tone;
   $('readErrorTitle').textContent = title || '';
   $('readErrorBody').textContent = message || '';
 }
@@ -373,8 +376,8 @@ if (SHORT_LINK_BASE) {
     // Ask the shortener first, so a code that does not resolve is explained on
     // this page instead of dumping the reader on a bare 404.
     input.disabled = true;
-    setReadError('Checking that code…');
-    const timer = setTimeout(() => setReadError('Still checking…'), 2000);
+    setReadError('Checking that code…', '', 'neutral');
+    const timer = setTimeout(() => setReadError('Still checking…', '', 'neutral'), 2000);
     (async () => {
       try {
         const r = await fetch(SHORT_LINK_BASE + '/' + code, {
