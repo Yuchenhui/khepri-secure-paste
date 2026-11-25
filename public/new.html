@@ -109,16 +109,16 @@
   .checks { display: grid; gap: 2px; margin: 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
   .checks label { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: .875rem; cursor: pointer; }
   .settings .button { justify-self: start; }
-  .create-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(28rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 10px; }
-  .create-feedback:has(#createError:not(:empty)) { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: 0 8px 24px -8px #18243566; }
-  #createError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.4; overflow-wrap: anywhere; }
+  .create-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(28rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: flex-start; gap: 10px; }
+  .create-feedback:has(#createError:not(:empty)) { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 12px 28px -10px #18243559; }
+  .create-feedback:has(#createError:not(:empty))::before { content: "!"; flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; background: var(--danger); color: var(--paper); font-size: .75rem; font-weight: 700; line-height: 18px; text-align: center; }
+  #createError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.45; overflow-wrap: anywhere; }
   #createError:empty ~ * { display: none; }
-  .error-countdown { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
   @media (prefers-reduced-motion: no-preference) {
     .create-feedback:has(#createError:not(:empty)) { animation: feedback-in 180ms ease-out; }
     @keyframes feedback-in { from { opacity: 0; transform: translateY(-8px); } }
   }
-  .dismiss-error { display: grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
+  .dismiss-error { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin: -3px -4px 0 0; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
   .dismiss-error:hover { background: var(--tint); color: var(--ink); }
   .dismiss-error svg { pointer-events: none; }
   /* Only the arrow moves: the native one is drawn by the platform a few pixels
@@ -261,7 +261,6 @@
   </div>
   <div class="create-feedback">
     <p id="createError" class="note err" role="alert"></p>
-    <span id="createErrorCountdown" class="note error-countdown" aria-hidden="true"></span>
     <button id="dismissCreateError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>

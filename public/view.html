@@ -76,19 +76,11 @@
   .short-lookup form::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: -3px; width: 8px; height: 8px; transform: translateY(-50%) rotate(45deg); border: 1px solid var(--line); border-width: 1px 1px 0 0; background: var(--paper); pointer-events: none; }
   .short-lookup .input { min-width: 0; padding-block: 10px 6px; font-family: "Cascadia Mono", Menlo, "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric: slashed-zero; }
   #body:not(:empty) { margin-top: 24px; }
-  .read-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(28rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 10px; }
-  .read-feedback:has(#readError:not(:empty)) { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: 0 8px 24px -8px #18243566; }
-  .read-feedback:has(#readError:not(:empty))::before { content: ""; flex: 0 0 calc(28px + 1.125rem + 10px); }
-  #readError { flex: 1; min-width: 0; max-block-size: 50vh; overflow: auto; line-height: 1.4; overflow-wrap: anywhere; text-align: center; }
-  #readError:empty ~ * { display: none; }
-  .error-countdown { flex: 0 0 1.125rem; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
-  @media (prefers-reduced-motion: no-preference) {
-    .read-feedback:has(#readError:not(:empty)) { animation: feedback-in 180ms ease-out; }
-    @keyframes feedback-in { from { opacity: 0; transform: translateY(-8px); } }
-  }
-  .dismiss-error { display: grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
-  .dismiss-error:hover { background: var(--tint); color: var(--ink); }
-  .dismiss-error svg { pointer-events: none; }
+  .unlock-error { padding: 22px 24px 24px; }
+  .unlock-error h2 { margin: 0 0 8px; font-size: 1.125rem; font-weight: 650; letter-spacing: -.01em; }
+  .unlock-error p { margin: 0 0 18px; }
+  .unlock-error-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .unlock-error-actions .button { min-height: 40px; }
   .page-footer { display: flex; justify-content: flex-end; margin-top: 12px; padding-inline: clamp(12px, 2vw, 20px); }
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
@@ -140,12 +132,13 @@
     </div>
     <button id="go" class="button" type="button">Decrypt</button>
   </div>
-  <div class="read-feedback">
-    <p id="readError" class="note err" role="alert"></p>
-    <span id="readErrorCountdown" class="note error-countdown" aria-hidden="true"></span>
-    <button id="dismissReadError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
-      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
+  <div id="unlockError" class="unlock-error panel" hidden>
+    <h2 id="unlockErrorTitle">Nothing here</h2>
+    <p id="unlockErrorText" class="note"></p>
+    <div class="unlock-error-actions">
+      <button id="unlockRetry" class="button" type="button">Try again</button>
+      <a class="button secondary" href="/">Create a paste</a>
+    </div>
   </div>
   <div id="body" aria-live="polite"></div>
   <footer class="page-footer note">

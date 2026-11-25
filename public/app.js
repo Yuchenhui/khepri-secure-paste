@@ -12,7 +12,6 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 const FILE_MARKER = 'KHEPRI-FILE 1';
 const SHORTENER = '__SHORTENER__';
 const MAX_TTL_S = Number('__MAX_TTL_S__');
-let createErrorTimer;
 const TTL_CHOICES = [
   { seconds: 3600, label: '1 hour' },
   { seconds: 6 * 3600, label: '6 hours' },
@@ -512,28 +511,12 @@ async function shorten(longUrl, len) {
   return body.trim();
 }
 
+// The card stays until it is dismissed: the errors here need a decision, so
+// they should not vanish on their own.
 function setCreateError(message) {
-  clearTimeout(createErrorTimer);
   const dismissFocused = document.activeElement === $('dismissCreateError');
   $('createError').textContent = message;
-  const countdown = $('createErrorCountdown');
-  if (!message) {
-    countdown.textContent = '';
-    if (dismissFocused) $('go').focus({ preventScroll: true });
-    return;
-  }
-  const deadline = Date.now() + 5000;
-  function tick() {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      setCreateError('');
-      return;
-    }
-    const seconds = Math.ceil(remaining / 1000);
-    countdown.textContent = seconds + 's';
-    createErrorTimer = setTimeout(tick, remaining - (seconds - 1) * 1000);
-  }
-  tick();
+  if (!message && dismissFocused) $('go').focus({ preventScroll: true });
 }
 
 $('dismissCreateError').onclick = () => setCreateError('');

@@ -192,9 +192,65 @@ ASSETS.set('/favicon.svg', {
   cache: 'public, max-age=3600',
 });
 
-function serveHtml(res, file) {
+// A browser that mistypes an address should land on a page that looks like
+// the rest of the service, not on a line of JSON.
+const ERROR_PAGES = {
+  400: ['That made no sense', 'The request was malformed. Check the address and try again.'],
+  404: ['Nothing here', 'This address does not point to a paste. It may have expired, already have been read, or never have existed.'],
+  429: ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'],
+  500: ['Something broke', 'The service hit an error it did not expect. Nothing was saved.'],
+  503: ['No room left', 'The store is full at the moment. Try again a little later.'],
+  507: ['No room left', 'The store is full at the moment. Try again a little later.'],
+};
+
+const ERROR_PAGE_CSS = `
+  :root { color-scheme: light; --canvas:#f2f3f0; --paper:#fff; --ink:#182435; --muted:#546477; --line:#d8dfe5; --accent:#214fb8; --accent-hover:#183e97; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin:0; min-height:100svh; display:grid; place-items:center; padding:24px; background:var(--canvas); color:var(--ink); font:1rem/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { width:min(100%,30rem); padding:30px 32px 32px; border:1px solid var(--line); border-radius:16px; background:var(--paper); box-shadow:0 12px 32px -24px #18243566; }
+  p.code { margin:0 0 8px; color:var(--muted); font:650 .75rem/1 ui-monospace,Menlo,Consolas,monospace; letter-spacing:.1em; text-transform:uppercase; }
+  h1 { margin:0 0 10px; font-size:1.75rem; font-weight:650; letter-spacing:-.03em; line-height:1.15; }
+  p.msg { margin:0 0 24px; color:var(--muted); }
+  a.button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:8px 16px; border:1px solid transparent; border-radius:8px; background:var(--accent); color:var(--paper); font-size:.875rem; font-weight:650; text-decoration:none; }
+  a.button:hover { background:var(--accent-hover); }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+`;
+
+function errorPage(status) {
+  const [title, body] = ERROR_PAGES[status] || ERROR_PAGES[500];
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} — Khepri</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>${ERROR_PAGE_CSS}</style>
+</head>
+<body>
+<main>
+  <p class="code">${status}</p>
+  <h1>${title}</h1>
+  <p class="msg">${body}</p>
+  <a class="button" href="/">Create a paste</a>
+</main>
+</body>
+</html>`;
+}
+
+// Browsers get the page, API clients get JSON. A fetch() sends Accept: */*,
+// so the browser pages are the only ones that turn into HTML.
+function fail(req, res, status, message) {
+  const accept = req.headers.accept;
+  if (typeof accept === 'string' && accept.includes('text/html')) {
+    return send(res, status, errorPage(status), { 'Content-Type': 'text/html; charset=utf-8' });
+  }
+  return send(res, status, { error: message });
+}
+
+function serveHtml(req, res, file) {
   fs.readFile(path.join(PUBLIC_DIR, file), 'utf8', (err, source) => {
-    if (err) return send(res, 404, { error: 'not found' });
+    if (err) return fail(req, res, 404, 'not found');
     const body = source
       .replace('src="/app.js"', 'src="' + SCRIPT_PATHS['app.js'] + '"')
       .replace('src="/view.js"', 'src="' + SCRIPT_PATHS['view.js'] + '"');
@@ -222,13 +278,13 @@ function serveAsset(res, asset) {
 const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   let url;
   try { url = new URL(req.url, 'http://internal'); }
-  catch { return send(res, 400, { error: 'bad URL' }); }
+  catch { return fail(req, res, 400, 'bad URL'); }
   const { pathname } = url;
   if (req.method === 'GET' && pathname === '/health') return send(res, 200, { ok: true });
 
   const ip = clientIp(req);
-  if (!ip) return send(res, 400, { error: 'invalid client address' });
-  if (!rateOk(ip)) return send(res, 429, { error: 'rate limited' });
+  if (!ip) return fail(req, res, 400, 'invalid client address');
+  if (!rateOk(ip)) return fail(req, res, 429, 'rate limited');
 
   if (req.method === 'GET' && ASSETS.has(pathname)) return serveAsset(res, ASSETS.get(pathname));
 
@@ -241,17 +297,17 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
         typeof ct !== 'string' || ct.length < 23 || ct.length % 4 === 1 || !/^[A-Za-z0-9_-]+$/.test(ct) ||
         !Number.isInteger(iterations) || iterations < 100000 || iterations > 1000000 ||
         typeof burn !== 'boolean' || typeof pinIp !== 'boolean') {
-      return send(res, 400, { error: 'invalid paste fields' });
+      return fail(req, res, 400, 'invalid paste fields');
     }
     // Absent ttl/reads keeps the old behaviour: full env lifetime, and burn
     // meaning a single read.
     const ttlSeconds = ttl === undefined ? MAX_TTL_S : ttl;
     const readLimit = reads === undefined ? (burn ? 1 : 0) : reads;
     if (!Number.isInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > MAX_TTL_S) {
-      return send(res, 400, { error: 'invalid expiry' });
+      return fail(req, res, 400, 'invalid expiry');
     }
     if (!Number.isInteger(readLimit) || readLimit < 0 || readLimit > MAX_READS) {
-      return send(res, 400, { error: 'invalid read limit' });
+      return fail(req, res, 400, 'invalid read limit');
     }
     if (qHas.get(id)) return send(res, 409, { error: 'id collision' });
 
@@ -259,7 +315,7 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     const usage = usageOf(ip);
     if (usage.count >= MAX_IP_PASTES || usage.bytes + size > MAX_IP_BYTES) {
       stats.rejected += 1;
-      return send(res, 429, { error: 'paste quota exceeded' });
+      return fail(req, res, 429, 'paste quota exceeded');
     }
 
     // A full store drops the oldest pastes instead of refusing every write, so
@@ -286,10 +342,10 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
       if (isDiskFull(err)) {
         stats.rejected += 1;
-        return send(res, 507, { error: 'paste storage full' });
+        return fail(req, res, 507, 'paste storage full');
       }
       console.error('create failed:', err.message);
-      return send(res, 500, { error: 'storage error' });
+      return fail(req, res, 500, 'storage error');
     }
     stats.creates += 1;
     return send(res, 200, { id });
@@ -297,19 +353,19 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
 
   if ((req.method === 'GET' || req.method === 'POST') && pathname.startsWith('/api/paste/')) {
     const id = pathname.slice('/api/paste/'.length);
-    if (!PASTE_ID.test(id)) return send(res, 400, { error: 'bad id' });
+    if (!PASTE_ID.test(id)) return fail(req, res, 400, 'bad id');
     const data = req.method === 'POST' ? await readJson(req, res, 256) : null;
     if (req.method === 'POST' && !data) return;
     const now = Date.now();
 
     if (req.method === 'GET') {
       const row = qGet.get(id);
-      if (!row) return send(res, 404, { error: 'not found' });
+      if (!row) return fail(req, res, 404, 'not found');
       if (row.expires <= now) {
         dropPaste(id);
-        return send(res, 404, { error: 'not found' });
+        return fail(req, res, 404, 'not found');
       }
-      if (row.pinnedTo && row.pinnedTo !== ip) return send(res, 404, { error: 'not found' });
+      if (row.pinnedTo && row.pinnedTo !== ip) return fail(req, res, 404, 'not found');
       return send(res, 200, {
         salt: row.salt, iterations: row.iterations, claim: row.claim,
         claimIv: row.claimIv, reads: row.reads, expires: row.expires,
@@ -341,7 +397,7 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     } catch (err) {
       try { db.exec('ROLLBACK'); } catch { /* already rolled back */ }
       console.error('read failed:', err.message);
-      return send(res, 500, { error: 'storage error' });
+      return fail(req, res, 500, 'storage error');
     }
     if (status === 200) stats.reads += 1;
     return send(res, status, body);
@@ -350,9 +406,9 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   if (req.method === 'GET' && pathname === '/') {
     // Any query string means someone followed a link: show the read page, which
     // reports a malformed ID itself, instead of silently offering a new paste.
-    return serveHtml(res, url.search.length > 1 ? 'view.html' : 'new.html');
+    return serveHtml(req, res, url.search.length > 1 ? 'view.html' : 'new.html');
   }
-  return send(res, 404, { error: 'not found' });
+  return fail(req, res, 404, 'not found');
 });
 
 function dbFootprint() {

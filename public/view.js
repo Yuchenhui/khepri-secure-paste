@@ -98,30 +98,20 @@ function fileReadout(file) {
   return section;
 }
 
-let readErrorTimer;
-
-function setReadError(message) {
-  clearTimeout(readErrorTimer);
-  const dismissFocused = document.activeElement === $('dismissReadError');
-  $('readError').textContent = message;
-  const countdown = $('readErrorCountdown');
-  if (!message) {
-    countdown.textContent = '';
-    if (dismissFocused) $('go').focus({ preventScroll: true });
+// Errors replace the unlock form with a card that explains what happened and
+// offers a way back. Nothing floats over the title any more.
+function setReadError(title, message) {
+  const card = $('unlockError');
+  if (!title) {
+    card.hidden = true;
+    $('unlock').hidden = false;
     return;
   }
-  const deadline = Date.now() + 5000;
-  function tick() {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      setReadError('');
-      return;
-    }
-    const seconds = Math.ceil(remaining / 1000);
-    countdown.textContent = seconds + 's';
-    readErrorTimer = setTimeout(tick, remaining - (seconds - 1) * 1000);
-  }
-  tick();
+  $('unlockErrorTitle').textContent = title;
+  $('unlockErrorText').textContent = message;
+  $('unlock').hidden = true;
+  card.hidden = false;
+  $('unlockRetry').focus({ preventScroll: true });
 }
 
 function wrapToggleFor(setWrap) {
@@ -190,9 +180,9 @@ function lifetimeNote(meta) {
 async function decrypt() {
   const btn = $('go');
   if (btn.disabled) return;
-  setReadError('');
+  setReadError();
   if (!/^[0-9a-f]{16}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(frag)) {
-    setReadError('Malformed link: missing or invalid ID or key.');
+    setReadError('Malformed link', 'This address is missing the paste id or the key that opens it.');
     return;
   }
 
@@ -208,10 +198,10 @@ async function decrypt() {
     let d;
     try {
       const r = await fetch('/api/paste/' + id);
-      if (!r.ok) { setReadError('Link not found, expired, or already read.'); return; }
+      if (!r.ok) { setReadError('Nothing here', 'This paste has expired, has already been read, or never existed.'); return; }
       d = await r.json();
     } catch {
-      setReadError('Network error.');
+      setReadError('Network error', 'The request did not get through. Check the connection and try again.');
       return;
     }
 
@@ -243,10 +233,10 @@ async function decrypt() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proof: encodedProof }),
       });
-      if (!r.ok) { setReadError('Paste expired, was already read, or is locked to another IP.'); return; }
+      if (!r.ok) { setReadError('Nothing here', 'This paste has expired, has already been read, or is locked to a different address.'); return; }
       envelope = await r.json();
     } catch {
-      setReadError('Could not retrieve the paste. If it was set to burn, it may have been consumed.');
+      setReadError('Could not read it', 'The paste did not come back. If it was set to burn after reading, it may already be gone.');
       return;
     }
 
@@ -328,7 +318,7 @@ async function decrypt() {
     readout.append(life);
     showReadout(readout, source);
   } catch {
-    setReadError('Wrong password or corrupted content.');
+    setReadError('Wrong password', 'That password did not open this paste. Try again, or ask for a new link.');
   } finally {
     clearTimeout(busyTimer);
     btn.disabled = false;
@@ -345,10 +335,11 @@ function showReadout(readout, focusTarget) {
   $('body').replaceChildren(readout);
   $('pw').value = '';
   unlock.hidden = true;
+  $('unlockError').hidden = true;
   if (moveFocus) focusTarget.focus({ preventScroll: true });
 }
 
-$('dismissReadError').onclick = () => setReadError('');
+$('unlockRetry').onclick = () => { setReadError(); $('pw').focus({ preventScroll: true }); };
 $('go').onclick = decrypt;
 $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') decrypt(); });
 $('pw').focus();
