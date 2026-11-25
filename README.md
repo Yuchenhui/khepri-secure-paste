@@ -62,7 +62,7 @@ Opening a page or entering a wrong password does not bind the IP or consume a re
 
 Each paste carries its own lifetime and read limit, chosen in the create form:
 
-- **Expiry** — 1 hour, 6 hours, 24 hours, 3 days or 7 days. The form renders only the choices the server accepts: `TTL_HOURS` is the ceiling (24 in code, 168 in the deployment, so seven days is the maximum), and the longest allowed choice stays selected.
+- **Expiry** — 1 hour, 6 hours, 24 hours, 3 days or 7 days. The form renders only the choices the server accepts: `TTL_HOURS` is the ceiling (24 in code, 168 in the deployment, so seven days is the maximum). Six hours is selected by default; if the server allows less than that, the longest allowed choice is used instead.
 - **Read limit** — one read (the paste is deleted when the body is released), 3, 5, or no limit. The default is a single read.
 
 The create API takes `ttl` in seconds and `reads` as an integer (`0` means no limit, at most 20). Both are optional: without them the core uses the full `TTL_HOURS` lifetime and treats `burn: true` as a single read, which is what older clients send. The core rejects a `ttl` below 60 seconds or above the env ceiling with `400 invalid expiry`, and a `reads` outside `0..20` with `400 invalid read limit`.
