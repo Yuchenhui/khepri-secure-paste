@@ -376,9 +376,10 @@ const pwInput = $('pw');
 const pwNote = $('pwNote');
 const pwGen = $('pwGen');
 const pwCopy = $('pwCopy');
+const pwShow = $('pwShow');
 
 function syncPwActions() {
-  pwCopy.hidden = !pwInput.value;
+  pwCopy.disabled = !pwInput.value;
 }
 
 function setPwNote(text) {
@@ -391,6 +392,17 @@ pwGen.addEventListener('click', () => {
   pwInput.value = generatePassword();
   syncPwActions();
   setPwNote('Generated. Copy it and send it over a different channel than the link.');
+  pwInput.focus();
+});
+
+pwShow.addEventListener('click', () => {
+  const shown = pwInput.type === 'text';
+  pwInput.type = shown ? 'password' : 'text';
+  const icons = pwShow.querySelectorAll('svg');
+  icons[0].hidden = !shown;
+  icons[1].hidden = shown;
+  pwShow.title = shown ? 'Show password' : 'Hide password';
+  pwShow.setAttribute('aria-label', pwShow.title);
   pwInput.focus();
 });
 
@@ -410,6 +422,8 @@ pwCopy.addEventListener('click', async () => {
     pwCopy.title = 'Copy password';
   }, 1400);
 });
+
+syncPwActions();
 
 // The encoder is vendored and fetched only when a code is asked for, so a page
 // load that never shows a QR still downloads nothing beyond the HTML.
