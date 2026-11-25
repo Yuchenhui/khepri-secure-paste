@@ -7,9 +7,9 @@ Running at https://paste.vantolab.com/.
 
 ## Screenshots
 
-<img src="docs/new.png" width="620" alt="The create form: demo text, a password, a six-hour lifetime, three reads">
+<img src="assets/new.png" width="620" alt="The create form: demo text, a password, a six-hour lifetime, three reads">
 
-<img src="docs/read.png" width="620" alt="A decrypted paste, two reads left">
+<img src="assets/read.png" width="620" alt="A decrypted paste, two reads left">
 
 ## What it does
 
@@ -71,8 +71,8 @@ six hours. Expired pastes are swept out every minute.
 ## Layout
 
 `src/` holds the two services and their shared helpers, `public/` the two
-pages, `deploy/` the deployment script and nginx vhost, `docs/` the screenshots
-above, `test/` the suite that runs with `node --test`.
+pages, `deploy/` the deployment script and nginx vhost, `assets/` the
+screenshots above, `test/` the suite that runs with `node --test`.
 
 ## Not included
 
