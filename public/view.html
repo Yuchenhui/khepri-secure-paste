@@ -153,11 +153,10 @@
   .readout-source .line-numbers { position: sticky; left: 0; flex: none; padding-inline: 12px; border-right: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-muted); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
   .file-card { display: grid; gap: 8px; padding: 20px 22px; }
   .file-card p { margin: 0; }
-  /* The burn confirmation is the whole panel: the sentence, then the one
-     action, both at full width. */
-  .burn-confirm { padding: 22px 24px 24px; }
-  .burn-confirm .file-card { padding: 0; gap: 14px; }
-  .burn-confirm p { font-size: .875rem; line-height: 1.5; }
+  /* The burn confirmation is one panel, not a card inside a card: the
+     sentence, then the single action, both at full width. */
+  .burn-confirm { display: grid; gap: 14px; padding: 22px 24px 24px; }
+  .burn-confirm p { margin: 0; font-size: .875rem; line-height: 1.5; }
   .burn-confirm .button { width: 100%; min-height: 44px; }
   .file-name { font: 550 1rem/1.45 var(--mono); overflow-wrap: anywhere; }
   @media (max-width: 40rem) {

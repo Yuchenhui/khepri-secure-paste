@@ -160,12 +160,9 @@ function askToReadOnce() {
   go.textContent = 'Read once and destroy';
   go.onclick = () => { confirmedOnce = true; decrypt(); };
   go.id = 'go';
-  const inner = document.createElement('div');
-  inner.className = 'file-card';
-  inner.append(p, go);
   const panel = document.createElement('section');
-  panel.className = 'panel readout burn-confirm';
-  panel.append(inner);
+  panel.className = 'panel burn-confirm';
+  panel.append(p, go);
   // The field row goes, the password input stays: the confirmed run reads it
   // again, and a detached input keeps its value.
   const row = $('unlockRow');
