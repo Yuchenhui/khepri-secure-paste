@@ -22,7 +22,9 @@ const TTL_CHOICES = [
 ];
 
 // The server env is the ceiling on any paste's life, so the form only offers
-// lifetimes it will accept; the longest allowed one stays selected by default.
+// lifetimes it will accept. Six hours is the default; when the server allows
+// less than that, the longest allowed one is used instead.
+const DEFAULT_TTL_S = 6 * 3600;
 function fillExpiry() {
   const cap = Number.isFinite(MAX_TTL_S) && MAX_TTL_S >= 60 ? MAX_TTL_S : 86400;
   const select = $('ttl');
@@ -37,7 +39,8 @@ function fillExpiry() {
     option.textContent = choice.label;
     select.append(option);
   }
-  select.value = String(choices[choices.length - 1].seconds);
+  const preferred = choices.find((choice) => choice.seconds === DEFAULT_TTL_S);
+  select.value = String((preferred || choices[choices.length - 1]).seconds);
 }
 fillExpiry();
 
