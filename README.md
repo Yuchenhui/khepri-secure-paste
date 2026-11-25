@@ -1,7 +1,7 @@
 # Secure online clipboard
 
-A self-hosted encrypted pastebin, in the same spirit as PrivateBin. Paste text
-or a small file, get a link, and the server never sees what you wrote.
+A self-hosted encrypted pastebin. Paste text or a small file, get a link, and
+the server never sees what you wrote.
 
 The browser encrypts before anything is sent, so the key travels inside the
 link. Whoever you send it to is the only one who can open it. A paste can
