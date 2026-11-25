@@ -82,7 +82,7 @@ hand out short links.
 ## Versions
 
 A release is one tag: the base version, the minute it was built and the commit
-it came from, for example `1.0.0-20261125-1430-2a8af2a`. Pull `latest` for the
+it came from, for example `1.0.0-20261125-1207-3dec6e1`. Pull `latest` for the
 newest one. The same string is used as the git tag, so an image and a commit
 always name the same build.
 
