@@ -15,7 +15,7 @@ const paste = (bytes) => {
     body: {
       id: randomBytes(8).toString('hex'), ct: 'A'.repeat(bytes), iv: b64u(randomBytes(12)),
       salt: b64u(randomBytes(8)), claim: b64u(randomBytes(48)), claimIv: b64u(randomBytes(12)),
-      claimHash: b64u(createHash('sha256').update(proof).digest()), iterations: 200000,
+      claimHash: b64u(createHash('sha256').update(proof).digest()), iterations: 1000000,
       burn: false, pinIp: false, ttl: 3600, reads: 3,
     },
   };

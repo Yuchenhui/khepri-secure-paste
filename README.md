@@ -109,7 +109,8 @@ six hours. Expired pastes are swept out every minute.
 
 `src/` holds the two services and their shared helpers, `public/` the two
 pages, `deploy/` the deployment script and nginx vhost, `assets/` the
-screenshots above, `test/` the suite that runs with `node --test`.
+screenshots above, `design/` the token set the pages are drawn from,
+`scripts/` a latency benchmark, `test/` the suite that runs with `node --test`.
 
 ## Not included
 
