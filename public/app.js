@@ -227,8 +227,8 @@ function setAttached(file) {
 function attachFile(file) {
   if (!file) return;
   if (file.size > MAX_FILE_BYTES) {
-    setCreateError('“' + file.name + '” is ' + file.size.toLocaleString('en-US') + ' B; the limit is ' +
-      MAX_FILE_BYTES.toLocaleString('en-US') + ' B (' + formatBytes(MAX_FILE_BYTES) + ').');
+    setCreateError('“' + file.name + '” is ' + formatBytes(file.size) + '. The limit is ' +
+      formatBytes(MAX_FILE_BYTES) + '.');
     $('file').value = '';
     return;
   }
@@ -242,8 +242,8 @@ function attachFrom(files) {
   if (list.length === 0) return;
   if (list.length > 1) {
     const extra = list.length - 1;
-    setCreateError('One file per paste. Share ' +
-      (extra === 1 ? 'the other file' : 'the other ' + extra + ' files') + ' as separate pastes.');
+    setCreateError('One file per paste. Send ' +
+      (extra === 1 ? 'the other file' : 'the other ' + extra + ' files') + ' separately.');
     $('file').value = '';
     return;
   }
@@ -496,7 +496,7 @@ $('showQr').onclick = async () => {
     box.hidden = false;
     button.setAttribute('aria-expanded', 'true');
   } catch {
-    if ($('openUrl').href === url) setCreateError('Could not load the QR encoder; the link still works.');
+    if ($('openUrl').href === url) setCreateError('The QR code could not load. The link still works.');
   }
 };
 
@@ -517,9 +517,9 @@ const SHORTENER_ERRORS = {
   400: 'the link was not accepted',
   403: 'the shortener only serves this site',
   405: 'the shortener refused that method',
-  429: 'too many short links have been made recently',
+  429: 'too many short links recently',
   500: 'the shortener broke',
-  503: 'the shortener is full right now',
+  503: 'the shortener is full',
 };
 
 // The card stays until it is dismissed: the errors here need a decision, so
@@ -595,7 +595,7 @@ $('go').onclick = async () => {
         code = new URL(short).pathname.split('/').pop();
         href = short;
       } catch (e) {
-        shortError = 'The short link was not made — ' + e.message + '. The long link below works.';
+        shortError = 'No short link — ' + e.message + '.';
       }
     }
 
@@ -613,7 +613,7 @@ $('go').onclick = async () => {
       : '', true);
     $('out').hidden = false;
   } catch (e) {
-    setCreateError('Could not create the paste: ' + e.message);
+    setCreateError('Could not create the paste. ' + e.message);
   } finally {
     btn.disabled = false;
     btn.removeAttribute('aria-busy');

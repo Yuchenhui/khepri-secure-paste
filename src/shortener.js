@@ -24,13 +24,13 @@ const publicBase = configuredHttpBase(process.env.PUBLIC_URL, true);
 // Same treatment as the core: a browser that lands here gets a page, an API
 // client gets the plain reason.
 const ERROR_PAGES = {
-  400: ['That made no sense', 'The request was malformed. Check the address and try again.'],
-  403: ['Not allowed', 'This short link service only answers to its own paste site.'],
-  404: ['Nothing here', 'This short code does not point to a paste. It may have expired, or never have existed.'],
-  405: ['Wrong method', 'This address expects a different kind of request.'],
-  429: ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'],
-  500: ['Something broke', 'The service hit an error it did not expect. Nothing was saved.'],
-  503: ['No room left', 'There is no room for new short links at the moment. Try again a little later.'],
+  400: ['That made no sense', 'The request was malformed.'],
+  403: ['Not allowed', 'This service only answers to its own paste site.'],
+  404: ['Nothing here', 'This short code does not point to a paste.'],
+  405: ['Wrong method', 'This address expects a different request.'],
+  429: ['Too many requests', 'Give it a minute and try again.'],
+  500: ['Something broke', 'Nothing was saved.'],
+  503: ['No room left', 'No room for new short links. Try again later.'],
 };
 
 const ERROR_PAGE_CSS = `

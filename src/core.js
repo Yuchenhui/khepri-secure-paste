@@ -195,12 +195,12 @@ ASSETS.set('/favicon.svg', {
 // A browser that mistypes an address should land on a page that looks like
 // the rest of the service, not on a line of JSON.
 const ERROR_PAGES = {
-  400: ['That made no sense', 'The request was malformed. Check the address and try again.'],
-  404: ['Nothing here', 'This address does not point to a paste. It may have expired, already have been read, or never have existed.'],
-  429: ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'],
-  500: ['Something broke', 'The service hit an error it did not expect. Nothing was saved.'],
-  503: ['No room left', 'The store is full at the moment. Try again a little later.'],
-  507: ['No room left', 'The store is full at the moment. Try again a little later.'],
+  400: ['That made no sense', 'The request was malformed.'],
+  404: ['Nothing here', 'This address does not point to a paste.'],
+  429: ['Too many requests', 'Give it a minute and try again.'],
+  500: ['Something broke', 'Nothing was saved.'],
+  503: ['No room left', 'The store is full. Try again later.'],
+  507: ['No room left', 'The store is full. Try again later.'],
 };
 
 const ERROR_PAGE_CSS = `

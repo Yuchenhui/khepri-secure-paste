@@ -104,26 +104,17 @@ async function missingPaste(status) {
   let reason = '';
   try { reason = (await (await fetch('/api/paste/' + id, { method: 'GET' })).text()).trim(); } catch { /* no detail */ }
   if (status === 429) return ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'];
-  if (reason === 'expired') return ['Gone', 'This paste ran out of time and has been deleted from the server.'];
-  if (reason === 'pinned elsewhere') return ['Locked to another address', 'This paste can only be opened from the address that first asked for it.'];
+  if (reason === 'expired') return ['Gone', 'It ran out of time.'];
+  if (reason === 'pinned elsewhere') return ['Locked to another address', 'Only the first reader can open it.'];
   if (reason === 'wrong key') return ['Wrong password', 'That password did not open this paste. Try again, or ask for a new link.'];
-  return ['Nothing here', 'This paste has expired, has already been read, or never existed.'];
+  return ['Nothing here', 'It expired, was already read, or never existed.'];
 }
 
-// Errors replace the unlock form with a card that explains what happened and
-// offers a way back. Nothing floats over the title any more.
+// One message style for the whole site: a card floating at the top of the
+// page, with a warning mark and a dismiss button. It never moves the page.
 function setReadError(title, message) {
-  const card = $('unlockError');
-  if (!title) {
-    card.hidden = true;
-    $('unlock').hidden = false;
-    return;
-  }
-  $('unlockErrorTitle').textContent = title;
-  $('unlockErrorText').textContent = message;
-  $('unlock').hidden = true;
-  card.hidden = false;
-  $('unlockRetry').focus({ preventScroll: true });
+  $('readErrorTitle').textContent = title || '';
+  $('readErrorBody').textContent = message || '';
 }
 
 function wrapToggleFor(setWrap) {
@@ -194,7 +185,7 @@ async function decrypt() {
   if (btn.disabled) return;
   setReadError();
   if (!/^[0-9a-f]{16}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(frag)) {
-    setReadError('Malformed link', 'This address is missing the paste id or the key that opens it.');
+    setReadError('Malformed link', 'The id or the key is missing.');
     return;
   }
 
@@ -213,7 +204,7 @@ async function decrypt() {
       if (!r.ok) { setReadError(...missingPaste(r.status)); return; }
       d = await r.json();
     } catch {
-      setReadError('Network error', 'The request did not get through. Check the connection and try again.');
+      setReadError('Network error', 'The request did not get through.');
       return;
     }
 
@@ -257,7 +248,7 @@ async function decrypt() {
       }
       envelope = await r.json();
     } catch {
-      setReadError('Could not read it', 'The paste did not come back. If it was set to burn after reading, it may already be gone.');
+      setReadError('Could not read it', 'It may already have been consumed.');
       return;
     }
 
@@ -339,7 +330,7 @@ async function decrypt() {
     readout.append(life);
     showReadout(readout, source);
   } catch {
-    setReadError('Wrong password', 'That password did not open this paste. Try again, or ask for a new link.');
+    setReadError('Wrong password', 'Try again, or ask for a new link.');
   } finally {
     clearTimeout(busyTimer);
     btn.disabled = false;
@@ -356,11 +347,11 @@ function showReadout(readout, focusTarget) {
   $('body').replaceChildren(readout);
   $('pw').value = '';
   unlock.hidden = true;
-  $('unlockError').hidden = true;
+  setReadError();
   if (moveFocus) focusTarget.focus({ preventScroll: true });
 }
 
-$('unlockRetry').onclick = () => { setReadError(); $('pw').focus({ preventScroll: true }); };
+$('dismissReadError').onclick = () => { setReadError(); $('pw').focus({ preventScroll: true }); };
 $('go').onclick = decrypt;
 $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') decrypt(); });
 $('pw').focus();
@@ -368,14 +359,9 @@ $('pw').focus();
 if (SHORT_LINK_BASE) {
   const form = $('shortLookup');
   const input = $('shortCode');
-  $('shortLookupMenu').hidden = false;
-  const lookupError = document.createElement('p');
-  lookupError.className = 'note note--warn';
-  lookupError.id = 'lookupError';
-  lookupError.setAttribute('role', 'status');
-  form.append(lookupError);
+  form.hidden = false;
 
-  input.addEventListener('input', () => { input.setCustomValidity(''); lookupError.textContent = ''; });
+  input.addEventListener('input', () => { input.setCustomValidity(''); setReadError(); });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const code = input.value.trim();
@@ -387,8 +373,8 @@ if (SHORT_LINK_BASE) {
     // Ask the shortener first, so a code that does not resolve is explained on
     // this page instead of dumping the reader on a bare 404.
     input.disabled = true;
-    lookupError.textContent = 'Checking…';
-    const timer = setTimeout(() => lookupError.textContent = 'Taking longer than usual…', 2000);
+    setReadError('Checking that code…');
+    const timer = setTimeout(() => setReadError('Still checking…'), 2000);
     (async () => {
       try {
         const r = await fetch(SHORT_LINK_BASE + '/' + code, {
@@ -399,25 +385,25 @@ if (SHORT_LINK_BASE) {
           return;
         }
         if (r.status === 404) {
-          lookupError.textContent = 'No paste under that code. It may have expired, or the code may be mistyped.';
+          setReadError('No paste under that code', 'It expired, or the code is wrong.');
           return;
         }
         if (r.status === 429) {
-          lookupError.textContent = 'Too many requests from this address. Wait a minute and try again.';
+          setReadError('Too many requests', 'Wait a minute and try again.');
           return;
         }
         if (!r.ok) {
-          lookupError.textContent = 'The short link service did not answer. Try again in a moment.';
+          setReadError('Short link service down', 'Try again in a moment.');
           return;
         }
         location.assign(SHORT_LINK_BASE + '/' + code);
       } catch {
-        lookupError.textContent = 'Could not reach the short link service. Check the connection and try again.';
+        setReadError('Could not reach the short link service', 'Check the connection.');
       } finally {
         clearTimeout(timer);
         input.disabled = false;
-        if (['Checking…', 'Taking longer than usual…'].includes(lookupError.textContent)) {
-          lookupError.textContent = '';
+        if (['Checking that code…', 'Still checking…'].includes($('readError').textContent)) {
+          setReadError();
         }
       }
     })();
