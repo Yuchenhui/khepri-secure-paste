@@ -99,15 +99,21 @@ function fileReadout(file) {
 }
 
 // The core tells us which of the four reasons applies, so the reader can say
-// something true instead of guessing.
-async function missingPaste(status) {
-  let reason = '';
-  try { reason = (await (await fetch('/api/paste/' + id, { method: 'GET' })).text()).trim(); } catch { /* no detail */ }
+// something true instead of guessing. The reason is the body of the response
+// we already hold; asking again would spend a second request to learn nothing,
+// and spreading a promise into the message used to land in the catch-all.
+function missingPaste(status, reason) {
   if (status === 429) return ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'];
   if (reason === 'expired') return ['Gone', 'It ran out of time.'];
   if (reason === 'pinned elsewhere') return ['Locked to another address', 'Only the first reader can open it.'];
   if (reason === 'wrong key') return ['Wrong password', 'That password did not open this paste. Try again, or ask for a new link.'];
   return ['Nothing here', 'It expired, was already read, or never existed.'];
+}
+
+// The reason out of a JSON error body, without ever throwing.
+async function reasonFrom(response) {
+  try { return String((await response.json()).error || ''); }
+  catch { return ''; }
 }
 
 // One message style for the whole site: a card floating at the top of the
@@ -222,7 +228,7 @@ async function decrypt() {
     let d;
     try {
       const r = await fetch('/api/paste/' + id);
-      if (!r.ok) { setReadError(...missingPaste(r.status)); return; }
+      if (!r.ok) { setReadError(...missingPaste(r.status, await reasonFrom(r))); return; }
       d = await r.json();
     } catch {
       setReadError('Network error', 'The request did not get through.');
@@ -260,11 +266,10 @@ async function decrypt() {
       if (!r.ok) {
         // A wrong password fails here, after the local decrypt of the claim
         // already succeeded; the server says so in the body.
-        let why = '';
-        try { why = (await r.json()).error; } catch { /* no detail */ }
+        const why = await reasonFrom(r);
         setReadError(...(why === 'wrong key'
           ? ['Wrong password', 'That password did not open this paste. Try again, or ask for a new link.']
-          : missingPaste(r.status)));
+          : missingPaste(r.status, why)));
         return;
       }
       envelope = await r.json();
