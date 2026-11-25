@@ -81,10 +81,10 @@ hand out short links.
 
 ## Versions
 
-A release carries three tags on the image: `latest`, the commit it was built
-from (`936dea2`) and the day it went out (`v2026.11.25`). Pin the commit when
-you want to stay put, pull `latest` when you want the newest. The same string
-is used as the git tag.
+A release is one tag: the base version, the minute it was built and the commit
+it came from, for example `1.0.0-20261125-1430-2a8af2a`. Pull `latest` for the
+newest one. The same string is used as the git tag, so an image and a commit
+always name the same build.
 
 ## Limits
 

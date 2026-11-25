@@ -11,6 +11,9 @@ set -Eeuo pipefail
 
 DOMAIN="paste.vantolab.com"
 IMAGE="paste:latest"
+# The base version. Bump the last number when the service changes shape, the
+# minor when it gains something, and leave it alone for a fix.
+VERSION_BASE="1.0.0"
 CORE_PORT=18901
 SHORT_PORT=18902
 APP_DIR=/opt/paste
@@ -39,19 +42,13 @@ chmod -R go-w "$APP_DIR"
 # stalls on this host, which leaves apk hanging inside the build.
 docker build --network host -q -t "$IMAGE" .
 
-# A release carries three tags: the commit it was built from, the day it went
-# out, and latest. The commit is what you pin, the date is what you read.
+# One tag per release: the base version, the moment it was built and the
+# commit it came from. latest rolls forward, this one never moves.
 SHA=$(git rev-parse --short=7 HEAD 2>/dev/null || echo "unknown")
-VERSION="v$(date +%Y.%m.%d)"
-if docker image inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
-  n=2
-  while docker image inspect "$IMAGE:$VERSION-$n" >/dev/null 2>&1; do n=$((n + 1)); done
-  VERSION="$VERSION-$n"
-fi
-docker tag "$IMAGE" "$IMAGE:$SHA"
+VERSION="$VERSION_BASE-$(date +%Y%m%d-%H%M)-$SHA"
 docker tag "$IMAGE" "$IMAGE:$VERSION"
 docker tag "$IMAGE" "$IMAGE:latest"
-echo "==> release $VERSION ($SHA)"
+echo "==> release $VERSION"
 
 # ---- 3. containers -------------------------------------------------------
 # --read-only: nothing is written outside the paste volume, which holds the
