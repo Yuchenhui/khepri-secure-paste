@@ -1,7 +1,12 @@
-# Khepri
+# Secure online clipboard
 
-An encrypted paste. You type something, the browser encrypts it, and you get a
-link. Whoever opens the link gets the text, or the one file you attached.
+A self-hosted encrypted pastebin, in the same spirit as PrivateBin. Paste text
+or a small file, get a link, and the server never sees what you wrote.
+
+The browser encrypts before anything is sent, so the key travels inside the
+link. Whoever you send it to is the only one who can open it. A paste can
+delete itself after a single read, and a short link (`/s/XXXXX`) keeps the URL
+small enough to retype on a locked-down console.
 
 Running at https://paste.vantolab.com/.
 
