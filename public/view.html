@@ -79,8 +79,9 @@
   @media (prefers-reduced-motion: reduce) { .bp-spinner { animation: none; } }
 
   .reader { max-width: 40rem; }
-  .unlock { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 18px 22px 22px; }
-  .unlock .field { flex: 1 1 14rem; }
+  .unlock { padding: 18px 22px 22px; }
+  #unlockRow { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+  #unlockRow .field { flex: 1 1 14rem; }
   .unlock .field > label { font-size: .8125rem; font-weight: 550; letter-spacing: .01em; }
   /* A short code is a handful of characters, so the row is a handful of
      pixels wide and sits beside the title, in the masthead's second column.
@@ -152,6 +153,12 @@
   .readout-source .line-numbers { position: sticky; left: 0; flex: none; padding-inline: 12px; border-right: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-muted); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
   .file-card { display: grid; gap: 8px; padding: 20px 22px; }
   .file-card p { margin: 0; }
+  /* The burn confirmation is the whole panel: the sentence, then the one
+     action, both at full width. */
+  .burn-confirm { padding: 22px 24px 24px; }
+  .burn-confirm .file-card { padding: 0; gap: 14px; }
+  .burn-confirm p { font-size: .875rem; line-height: 1.5; }
+  .burn-confirm .button { width: 100%; min-height: 44px; }
   .file-name { font: 550 1rem/1.45 var(--mono); overflow-wrap: anywhere; }
   @media (max-width: 40rem) {
     main { width: calc(100% - 32px); margin-top: 32px; }
@@ -177,11 +184,13 @@
     <p>Decrypt this paste in your browser.</p>
   </header>
   <div id="unlock" class="unlock panel">
-    <div class="field">
-      <label for="pw">Password <span class="optional">(if set)</span></label>
-      <input id="pw" type="password" class="input" placeholder="Leave blank if none was set" autocomplete="off">
+    <div id="unlockRow">
+      <div class="field">
+        <label for="pw">Password <span class="optional">(if set)</span></label>
+        <input id="pw" type="password" class="input" placeholder="Leave blank if none was set" autocomplete="off">
+      </div>
+      <button id="go" class="button" type="button">Decrypt</button>
     </div>
-    <button id="go" class="button" type="button">Decrypt</button>
   </div>
   <div class="read-feedback">
     <p id="readError" class="note err" role="alert"><span id="readErrorTitle"></span><span id="readErrorBody"></span></p>

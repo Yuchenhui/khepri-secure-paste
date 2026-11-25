@@ -142,9 +142,9 @@ function makeSpinner() {
 let confirmedOnce = false;
 
 function askToReadOnce() {
-  // Swaps the unlock panel only. Replacing the body here would strand the
-  // references the rest of the flow still holds, and the password box would
-  // outlive the paste it belongs to.
+  // The unlock panel becomes the confirmation: the password field and the
+  // Decrypt button leave together, and the single action takes their place.
+  // Nothing is left behind that the paste no longer needs.
   const p = document.createElement('p');
   p.className = 'note';
   p.textContent = 'This paste allows one read. Opening it now deletes it from the server.';
@@ -153,18 +153,18 @@ function askToReadOnce() {
   go.type = 'button';
   go.textContent = 'Read once and destroy';
   go.onclick = () => { confirmedOnce = true; decrypt(); };
+  go.id = 'go';
   const inner = document.createElement('div');
   inner.className = 'file-card';
   inner.append(p, go);
   const panel = document.createElement('section');
-  panel.className = 'panel readout';
+  panel.className = 'panel readout burn-confirm';
   panel.append(inner);
-  // The confirmation sits between the password field and the button: the field
-  // stays in the DOM because the confirmed run reads it again, and the Decrypt
-  // button is replaced so there is exactly one way forward.
-  const unlock = $('unlock');
-  unlock.querySelector('.field').after(panel);
-  $('go').replaceWith(document.createElement('span'));
+  // The field row goes, the password input stays: the confirmed run reads it
+  // again, and a detached input keeps its value.
+  const row = $('unlockRow');
+  row.hidden = true;
+  row.after(panel);
 }
 
 function shortSpan(ms) {
