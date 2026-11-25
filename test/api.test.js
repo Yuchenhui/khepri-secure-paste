@@ -416,6 +416,54 @@ describe('disk store', () => {
     }
   });
 
+  test('each reason a paste is missing gets its own code', async () => {
+    const server = await startCore();
+    try {
+      const c = client(server, '10.9.1.1');
+      const reasonFrom = async (client, id) => {
+        const r = await client.get('/api/paste/' + id);
+        if (!r.ok) return (await r.json()).error;
+        return undefined; // served fine, so there is no reason to report
+      };
+      const reason = (id) => reasonFrom(c, id);
+
+      // A paste that never existed, and one whose clock has run out.
+      assert.equal(await reason('0123456789abcdef'), 'never existed');
+      const gone = paste({ reads: 0, ttl: 60 });
+      assert.equal(await status(c.post('/api/paste', gone.body)), 200);
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(server.dbPath);
+      db.prepare('UPDATE pastes SET expires = ? WHERE id = ?').run(Date.now() - 1, gone.id);
+      db.close();
+      assert.equal(await reason(gone.id), 'expired');
+
+      // One locked to a first reader's address, asked for from another. The
+      // helper already carries the proof token that matches its own claimHash.
+      const pinned = paste({ reads: 3, pinIp: true });
+      assert.equal(await status(c.post('/api/paste', pinned.body)), 200);
+      assert.equal(await status(read(c, pinned.id, pinned.proofToken)), 200, 'first reader binds the address');
+      // The binding address still reads it; a different one is told why not.
+      const stranger = client(server, '10.9.1.2');
+      assert.equal(await status(read(stranger, pinned.id, pinned.proofToken)), 404);
+      assert.equal(await reasonFrom(stranger, pinned.id), 'pinned elsewhere');
+      assert.equal(await reasonFrom(c, pinned.id), undefined, 'the binding address still gets the metadata');
+
+      // One that exists but is asked for with the wrong key. The metadata GET
+      // still succeeds — the paste is there — so the reason only shows up on
+      // the read itself, which is where the password was checked.
+      const other = paste({ reads: 3 });
+      assert.equal(await status(c.post('/api/paste', other.body)), 200);
+      const wrongKey = await read(c, other.id, b64u(randomBytes(32)));
+      assert.equal(wrongKey.status, 404);
+      assert.equal((await wrongKey.json()).error, 'wrong key');
+      assert.equal(await reason(other.id), undefined, 'the metadata request still works');
+
+      await new Promise((r) => setTimeout(r, 50));
+    } finally {
+      await server.stop();
+    }
+  });
+
   test('per-client usage is tracked on disk', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'paste-quota-'));
     const dbPath = path.join(dir, 'paste.db');

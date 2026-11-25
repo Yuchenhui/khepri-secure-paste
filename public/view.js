@@ -98,6 +98,18 @@ function fileReadout(file) {
   return section;
 }
 
+// The core tells us which of the four reasons applies, so the reader can say
+// something true instead of guessing.
+async function missingPaste(status) {
+  let reason = '';
+  try { reason = (await (await fetch('/api/paste/' + id, { method: 'GET' })).text()).trim(); } catch { /* no detail */ }
+  if (status === 429) return ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'];
+  if (reason === 'expired') return ['Gone', 'This paste ran out of time and has been deleted from the server.'];
+  if (reason === 'pinned elsewhere') return ['Locked to another address', 'This paste can only be opened from the address that first asked for it.'];
+  if (reason === 'wrong key') return ['Wrong password', 'That password did not open this paste. Try again, or ask for a new link.'];
+  return ['Nothing here', 'This paste has expired, has already been read, or never existed.'];
+}
+
 // Errors replace the unlock form with a card that explains what happened and
 // offers a way back. Nothing floats over the title any more.
 function setReadError(title, message) {
@@ -198,7 +210,7 @@ async function decrypt() {
     let d;
     try {
       const r = await fetch('/api/paste/' + id);
-      if (!r.ok) { setReadError('Nothing here', 'This paste has expired, has already been read, or never existed.'); return; }
+      if (!r.ok) { setReadError(...missingPaste(r.status)); return; }
       d = await r.json();
     } catch {
       setReadError('Network error', 'The request did not get through. Check the connection and try again.');
@@ -233,7 +245,16 @@ async function decrypt() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proof: encodedProof }),
       });
-      if (!r.ok) { setReadError('Nothing here', 'This paste has expired, has already been read, or is locked to a different address.'); return; }
+      if (!r.ok) {
+        // A wrong password fails here, after the local decrypt of the claim
+        // already succeeded; the server says so in the body.
+        let why = '';
+        try { why = (await r.json()).error; } catch { /* no detail */ }
+        setReadError(...(why === 'wrong key'
+          ? ['Wrong password', 'That password did not open this paste. Try again, or ask for a new link.']
+          : missingPaste(r.status)));
+        return;
+      }
       envelope = await r.json();
     } catch {
       setReadError('Could not read it', 'The paste did not come back. If it was set to burn after reading, it may already be gone.');
@@ -348,7 +369,13 @@ if (SHORT_LINK_BASE) {
   const form = $('shortLookup');
   const input = $('shortCode');
   $('shortLookupMenu').hidden = false;
-  input.addEventListener('input', () => input.setCustomValidity(''));
+  const lookupError = document.createElement('p');
+  lookupError.className = 'note note--warn';
+  lookupError.id = 'lookupError';
+  lookupError.setAttribute('role', 'status');
+  form.append(lookupError);
+
+  input.addEventListener('input', () => { input.setCustomValidity(''); lookupError.textContent = ''; });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const code = input.value.trim();
@@ -357,6 +384,42 @@ if (SHORT_LINK_BASE) {
       input.reportValidity();
       return;
     }
-    location.assign(SHORT_LINK_BASE + '/' + code);
+    // Ask the shortener first, so a code that does not resolve is explained on
+    // this page instead of dumping the reader on a bare 404.
+    input.disabled = true;
+    lookupError.textContent = 'Checking…';
+    const timer = setTimeout(() => lookupError.textContent = 'Taking longer than usual…', 2000);
+    (async () => {
+      try {
+        const r = await fetch(SHORT_LINK_BASE + '/' + code, {
+          method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(10000),
+        });
+        if (r.type === 'opaqueredirect' || (r.status >= 300 && r.status < 400 && r.headers.get('Location'))) {
+          location.assign(SHORT_LINK_BASE + '/' + code);
+          return;
+        }
+        if (r.status === 404) {
+          lookupError.textContent = 'No paste under that code. It may have expired, or the code may be mistyped.';
+          return;
+        }
+        if (r.status === 429) {
+          lookupError.textContent = 'Too many requests from this address. Wait a minute and try again.';
+          return;
+        }
+        if (!r.ok) {
+          lookupError.textContent = 'The short link service did not answer. Try again in a moment.';
+          return;
+        }
+        location.assign(SHORT_LINK_BASE + '/' + code);
+      } catch {
+        lookupError.textContent = 'Could not reach the short link service. Check the connection and try again.';
+      } finally {
+        clearTimeout(timer);
+        input.disabled = false;
+        if (['Checking…', 'Taking longer than usual…'].includes(lookupError.textContent)) {
+          lookupError.textContent = '';
+        }
+      }
+    })();
   });
 }

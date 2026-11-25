@@ -21,6 +21,61 @@ const rateOk = createRateLimit(120);
 const pasteOrigin = configuredHttpBase(process.env.ALLOWED_ORIGIN);
 const publicBase = configuredHttpBase(process.env.PUBLIC_URL, true);
 
+// Same treatment as the core: a browser that lands here gets a page, an API
+// client gets the plain reason.
+const ERROR_PAGES = {
+  400: ['That made no sense', 'The request was malformed. Check the address and try again.'],
+  403: ['Not allowed', 'This short link service only answers to its own paste site.'],
+  404: ['Nothing here', 'This short code does not point to a paste. It may have expired, or never have existed.'],
+  405: ['Wrong method', 'This address expects a different kind of request.'],
+  429: ['Too many requests', 'This address has been asking for too much. Give it a minute and try again.'],
+  500: ['Something broke', 'The service hit an error it did not expect. Nothing was saved.'],
+  503: ['No room left', 'There is no room for new short links at the moment. Try again a little later.'],
+};
+
+const ERROR_PAGE_CSS = `
+  :root { color-scheme: light; --canvas:#f2f3f0; --paper:#fff; --ink:#182435; --muted:#546477; --line:#d8dfe5; --accent:#214fb8; --accent-hover:#183e97; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin:0; min-height:100svh; display:grid; place-items:center; padding:24px; background:var(--canvas); color:var(--ink); font:1rem/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { width:min(100%,30rem); padding:30px 32px 32px; border:1px solid var(--line); border-radius:16px; background:var(--paper); box-shadow:0 12px 32px -24px #18243566; }
+  p.code { margin:0 0 8px; color:var(--muted); font:650 .75rem/1 ui-monospace,Menlo,Consolas,monospace; letter-spacing:.1em; text-transform:uppercase; }
+  h1 { margin:0 0 10px; font-size:1.75rem; font-weight:650; letter-spacing:-.03em; line-height:1.15; }
+  p.msg { margin:0 0 24px; color:var(--muted); }
+  a.button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:8px 16px; border:1px solid transparent; border-radius:8px; background:var(--accent); color:var(--paper); font-size:.875rem; font-weight:650; text-decoration:none; }
+  a.button:hover { background:var(--accent-hover); }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+`;
+
+function errorPage(status) {
+  const [title, body] = ERROR_PAGES[status] || ERROR_PAGES[500];
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} — Khepri</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>${ERROR_PAGE_CSS}</style>
+</head>
+<body>
+<main>
+  <p class="code">${status}</p>
+  <h1>${title}</h1>
+  <p class="msg">${body}</p>
+  <a class="button" href="${pasteOrigin.href}">Create a paste</a>
+</main>
+</body>
+</html>`;
+}
+
+function fail(req, res, status, message) {
+  const accept = req.headers.accept;
+  if (typeof accept === 'string' && accept.includes('text/html')) {
+    return send(res, status, errorPage(status), { 'Content-Type': 'text/html; charset=utf-8' });
+  }
+  return send(res, status, message);
+}
+
 function validLength(length) {
   return Number.isInteger(length) && length >= 3 && length <= 12;
 }
@@ -130,17 +185,23 @@ function newCode(length) {
 const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   let url;
   try { url = new URL(req.url, 'http://internal'); }
-  catch { return send(res, 400, 'bad URL'); }
+  catch { return fail(req, res, 400, 'bad URL'); }
   const { pathname } = url;
   if (req.method === 'GET' && pathname === '/health') return send(res, 200, 'ok');
 
   const ip = clientIp(req);
-  if (!ip) return send(res, 400, 'invalid client address');
+  if (!ip) return fail(req, res, 400, 'invalid client address');
+  // The read page probes a code before sending the reader there, so the
+  // redirect route answers to the paste origin too. Only that origin may ask.
+  if (pathname !== '/shorten') {
+    res.setHeader('Vary', 'Origin');
+    if (req.headers.origin === pasteOrigin) res.setHeader('Access-Control-Allow-Origin', pasteOrigin);
+  }
   if (pathname === '/shorten') {
     res.setHeader('Vary', 'Origin');
-    if (req.headers.origin !== pasteOrigin) return send(res, 403, 'origin not allowed');
+    if (req.headers.origin !== pasteOrigin) return fail(req, res, 403, 'origin not allowed');
     res.setHeader('Access-Control-Allow-Origin', pasteOrigin);
-    if (!rateOk(ip)) return send(res, 429, 'rate limited');
+    if (!rateOk(ip)) return fail(req, res, 429, 'rate limited');
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -149,44 +210,44 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       });
       return res.end();
     }
-    if (req.method !== 'POST') return send(res, 405, 'method not allowed', { Allow: 'POST, OPTIONS' });
-    if (url.search) return send(res, 400, 'query parameters not allowed');
+    if (req.method !== 'POST') return fail(req, res, 405, 'method not allowed');
+    if (url.search) return fail(req, res, 400, 'query parameters not allowed');
     const data = await readJson(req, res, 1024);
     if (!data) return;
     const target = pasteTarget(data.url);
     const length = data.len === undefined ? DEFAULT_LENGTH : data.len;
-    if (!target) return send(res, 400, 'invalid paste destination');
-    if (!validLength(length)) return send(res, 400, 'len must be an integer from 3 to 12');
+    if (!target) return fail(req, res, 400, 'invalid paste destination');
+    if (!validLength(length)) return fail(req, res, 400, 'len must be an integer from 3 to 12');
     // One client must not be able to fill the shared store on its own. The
     // quota counts the codes this client holds right now, not every code it
     // ever made: expired links free their slot.
-    if (qOwnerCount.get(ip, Date.now()).c >= MAX_IP_LINKS) return send(res, 429, 'short link quota exceeded');
-    if (qCount.get(Date.now()).c >= MAX_LINKS) return send(res, 503, 'short link storage full');
+    if (qOwnerCount.get(ip, Date.now()).c >= MAX_IP_LINKS) return fail(req, res, 429, 'short link quota exceeded');
+    if (qCount.get(Date.now()).c >= MAX_LINKS) return fail(req, res, 503, 'short link storage full');
     const code = newCode(length);
-    if (!code) return send(res, 503, 'could not allocate a short code');
+    if (!code) return fail(req, res, 503, 'could not allocate a short code');
     const sealed = sealTarget(target);
     qInsert.run(code, sealed.target, ip, Date.now() + TTL_MS, sealed.iv, sealed.tag);
     return send(res, 200, publicBase + '/' + code);
   }
 
-  if (!rateOk(ip)) return send(res, 429, 'rate limited');
+  if (!rateOk(ip)) return fail(req, res, 429, 'rate limited');
   if (req.method === 'GET' && /^\/[A-Za-z0-9]{3,12}$/.test(pathname)) {
     const code = pathname.slice(1);
     const entry = qGet.get(code);
-    if (!entry) return send(res, 404, 'unknown code');
+    if (!entry) return fail(req, res, 404, 'unknown code');
     if (entry.expires <= Date.now()) {
       qDelete.run(code);
-      return send(res, 404, 'unknown code');
+      return fail(req, res, 404, 'unknown code');
     }
     const target = openTarget(entry);
     if (!target) {
       console.error('short link ' + code + ' could not be decrypted');
-      return send(res, 404, 'unknown code');
+      return fail(req, res, 404, 'unknown code');
     }
     // Following a redirect never consumes a paste or its short link.
     return send(res, 302, '', { Location: target });
   }
-  return send(res, 404, 'not found');
+  return fail(req, res, 404, 'not found');
 });
 
 setInterval(() => {

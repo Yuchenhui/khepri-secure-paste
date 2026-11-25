@@ -305,7 +305,7 @@ function setMain(href, code) {
 function setState(text, isError) {
   const el = $('shortState');
   el.textContent = text;
-  el.classList.toggle('err', Boolean(isError));
+  el.className = text ? (isError ? 'note note--warn' : 'note') : '';
 }
 
 function setNote(text, isWarn) {
@@ -507,9 +507,20 @@ async function shorten(longUrl, len) {
     signal: AbortSignal.timeout(5000),
   });
   const body = await r.text();
-  if (!r.ok) throw new Error('HTTP ' + r.status + (body ? ' — ' + body.trim() : ''));
+  if (!r.ok) throw new Error(SHORTENER_ERRORS[r.status] || 'the shortener said no');
   return body.trim();
 }
+
+// What the shortener's status codes mean to someone reading the page. The raw
+// body stays in the console for anyone debugging; nobody needs it here.
+const SHORTENER_ERRORS = {
+  400: 'the link was not accepted',
+  403: 'the shortener only serves this site',
+  405: 'the shortener refused that method',
+  429: 'too many short links have been made recently',
+  500: 'the shortener broke',
+  503: 'the shortener is full right now',
+};
 
 // The card stays until it is dismissed: the errors here need a decision, so
 // they should not vanish on their own.
@@ -584,7 +595,7 @@ $('go').onclick = async () => {
         code = new URL(short).pathname.split('/').pop();
         href = short;
       } catch (e) {
-        shortError = 'Shorten failed — using the long link. ' + e.message;
+        shortError = 'The short link was not made — ' + e.message + '. The long link below works.';
       }
     }
 

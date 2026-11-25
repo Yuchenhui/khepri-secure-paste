@@ -360,12 +360,15 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
 
     if (req.method === 'GET') {
       const row = qGet.get(id);
-      if (!row) return fail(req, res, 404, 'not found');
+      // The three reasons a paste is gone read differently on the read page,
+      // so each gets its own code. The body stays generic: "not found" is all
+      // an outsider learns either way.
+      if (!row) return fail(req, res, 404, 'never existed');
       if (row.expires <= now) {
         dropPaste(id);
-        return fail(req, res, 404, 'not found');
+        return fail(req, res, 404, 'expired');
       }
-      if (row.pinnedTo && row.pinnedTo !== ip) return fail(req, res, 404, 'not found');
+      if (row.pinnedTo && row.pinnedTo !== ip) return fail(req, res, 404, 'pinned elsewhere');
       return send(res, 200, {
         salt: row.salt, iterations: row.iterations, claim: row.claim,
         claimIv: row.claimIv, reads: row.reads, expires: row.expires,
@@ -378,20 +381,25 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     // One transaction covers the lookup, the address check, the proof check and
     // the consume: a crash mid-way leaves the paste intact for a retry.
     let status = 404;
-    let body = { error: 'not found' };
+    let reason = 'never existed';
+    let row = null;
     db.exec('BEGIN IMMEDIATE');
     try {
-      const row = qGet.get(id);
+      row = qGet.get(id);
       if (row && row.expires <= now) {
         dropPaste(id);
-      } else if (row && !(row.pinnedTo && row.pinnedTo !== ip) && timingSafeEqual(hash, Buffer.from(row.claimHash))) {
+        reason = 'expired';
+      } else if (row && row.pinnedTo && row.pinnedTo !== ip) {
+        reason = 'pinned elsewhere';
+      } else if (row && timingSafeEqual(hash, Buffer.from(row.claimHash))) {
         if (row.pinIp) qSetPinned.run(ip, id);
         if (row.reads > 0) {
           if (row.reads === 1) dropPaste(id);
           else qSetReads.run(row.reads - 1, id);
         }
         status = 200;
-        body = { ct: row.ct, iv: row.iv };
+      } else if (row) {
+        reason = 'wrong key';
       }
       db.exec('COMMIT');
     } catch (err) {
@@ -400,7 +408,8 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       return fail(req, res, 500, 'storage error');
     }
     if (status === 200) stats.reads += 1;
-    return send(res, status, body);
+    if (status !== 200) return fail(req, res, status, reason);
+    return send(res, status, { ct: row.ct, iv: row.iv });
   }
 
   if (req.method === 'GET' && pathname === '/') {
