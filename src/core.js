@@ -391,6 +391,8 @@ setInterval(() => {
   stats.expired = 0;
 }, 60000).unref();
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Paste core listening on 127.0.0.1:${server.address().port} (db ${DB_PATH}, cap ${MAX_DISK_MB} MiB)`);
+// Loopback by default; a container that publishes a port needs HOST=0.0.0.0.
+const HOST = process.env.HOST || '127.0.0.1';
+server.listen(PORT, HOST, () => {
+  console.log(`Paste core listening on ${HOST}:${server.address().port} (db ${DB_PATH}, cap ${MAX_DISK_MB} MiB)`);
 });

@@ -54,6 +54,31 @@ Point the core at the shortener with `SHORTENER_URL` to get short links.
 `deploy/deploy.sh` builds the image, runs both containers and installs the
 nginx vhost.
 
+Or straight from Docker Hub:
+
+```bash
+docker run -d --name khepri -p 8080:8080 \
+  -e HOST=0.0.0.0 -e TTL_HOURS=168 -e DB_PATH=/data/paste.db \
+  -v khepri-data:/data yuchenhui/khepri-secure-paste:latest
+```
+
+`HOST=0.0.0.0` is what makes the published port reachable: the service binds
+to loopback by default. Put a TLS terminator in front of it before anyone else
+can reach it.
+
+Short links need a second container from the same image:
+
+```bash
+docker run -d --name khepri-short -p 8081:8080 \
+  -e HOST=0.0.0.0 -e TTL_HOURS=168 -e SHORTENER_DB_PATH=/data/shortener.db \
+  -e SHORTENER_KEY="$(openssl rand -base64 32)" \
+  -e PUBLIC_URL=http://localhost:8081 -e ALLOWED_ORIGIN=http://localhost:8080 \
+  -v khepri-data:/data yuchenhui/khepri-secure-paste:latest node src/shortener.js
+```
+
+Give the core `SHORTENER_URL=http://localhost:8081` and the two services will
+hand out short links.
+
 ## Limits
 
 1 MiB per request, 256 KB per file, 5 GiB and 200000 pastes on disk, 100000
