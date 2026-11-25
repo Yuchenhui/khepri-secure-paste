@@ -11,3 +11,8 @@ node_modules/
 /design/icon.svg
 /design/icon-independent.svg
 /design/icon-options/
+
+# Deployment scripts and vhosts name the host, the domain and the ports, and
+# are not useful to anyone else. Kept in the working tree, never committed.
+/deploy/
+

@@ -55,11 +55,12 @@ PORT=8081 PUBLIC_URL=https://paste.example.com/s ALLOWED_ORIGIN=https://paste.ex
 ```
 
 Point the core at the shortener with `SHORTENER_URL` to get short links.
-`deploy/deploy.sh` stages the code under `/opt/paste/releases/<sha>/`,
-bind-mounts it over `/app/src` and `/app/public`, recreates both containers and
-installs the nginx vhost. The image carries only the Node runtime, so an
-ordinary deploy never rebuilds it, and a rollback is a re-run with
-`--sha <older rev>`.
+
+Deployment stages the code under `/opt/paste/releases/<sha>/` and bind-mounts it
+over `/app/src` and `/app/public`, so the image carries only the Node runtime:
+an ordinary deploy never rebuilds it, and a rollback is pointing the mounts at
+an older release. The script and nginx vhost are not published — they name the
+host, the domain and the ports.
 
 Or straight from Docker Hub — the paste service alone:
 
@@ -119,9 +120,9 @@ six hours. Expired pastes are swept out every minute.
 ## Layout
 
 `src/` holds the two services and their shared helpers, `public/` the two
-pages, `deploy/` the deployment script and nginx vhost, `assets/` the
-screenshots above, `design/` the token set the pages are drawn from,
-`scripts/` a latency benchmark, `test/` the suite that runs with `node --test`.
+pages, `assets/` the screenshots above, `design/` the token set the pages are
+drawn from, `scripts/` a latency benchmark, `test/` the suite that runs with
+`node --test`.
 
 ## Not included
 
