@@ -77,7 +77,10 @@ function updateWrap() {
 }
 
 const settingsKey = 'khepri:create-settings';
-const settingsControls = ['ttl', 'reads', 'pin', 'len', 'autoWrap'].map($);
+// The lifetime is deliberately not remembered: a leftover value from an
+// earlier visit would silently override the default, and a stale paste that
+// lives longer than intended is the worse failure.
+const settingsControls = ['reads', 'pin', 'len', 'autoWrap'].map($);
 
 try {
   const saved = JSON.parse(localStorage.getItem(settingsKey));
