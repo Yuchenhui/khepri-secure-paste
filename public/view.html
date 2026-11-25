@@ -151,13 +151,17 @@
   .readout-source.wrap pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
   .readout-source.wrap .line-numbers { position: static; }
   .readout-source .line-numbers { position: sticky; left: 0; flex: none; padding-inline: 12px; border-right: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-muted); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
-  .file-card { display: grid; gap: 8px; padding: 20px 22px; }
-  .file-card p { margin: 0; }
+  /* The file readout is one panel: the name and its details sit directly on
+     it, with the action row underneath. */
+  .readout[data-readout="file"] .file-name { margin: 0; padding: 18px 20px 0; }
+  .readout[data-readout="file"] > .note { margin: 0; padding: 2px 20px 18px; font-size: .8125rem; }
   /* The burn confirmation is one panel, not a card inside a card: the
      sentence, then the single action, both at full width. */
   .burn-confirm { display: grid; gap: 14px; padding: 22px 24px 24px; }
   .burn-confirm p { margin: 0; font-size: .875rem; line-height: 1.5; }
   .burn-confirm .button { width: 100%; min-height: 44px; }
+  /* The password field moved here to keep its value; it must stay invisible. */
+  .burn-confirm #pw { display: none; }
   .file-name { font: 550 1rem/1.45 var(--mono); overflow-wrap: anywhere; }
   @media (max-width: 40rem) {
     main { width: calc(100% - 32px); margin-top: 32px; }

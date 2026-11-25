@@ -87,13 +87,9 @@ function fileReadout(file) {
   const meta = document.createElement('p');
   meta.className = 'note';
   meta.textContent = formatBytes(file.size) + (file.type ? ' · ' + file.type : '');
-  const card = document.createElement('div');
-  card.className = 'file-card';
-  card.append(name, meta);
-
   const section = document.createElement('section');
   section.className = 'panel readout';
-  section.append(bar, card, controls);
+  section.append(bar, name, meta, controls);
   section.dataset.readout = 'file';
   return section;
 }
@@ -163,11 +159,15 @@ function askToReadOnce() {
   const panel = document.createElement('section');
   panel.className = 'panel burn-confirm';
   panel.append(p, go);
-  // The field row goes, the password input stays: the confirmed run reads it
-  // again, and a detached input keeps its value.
-  const row = $('unlockRow');
-  row.hidden = true;
-  row.after(panel);
+  // The unlock panel is replaced, not filled: one border, one panel. The
+  // password input moves across so the confirmed run can still read it.
+  const unlock = $('unlock');
+  const pw = $('pw');
+  unlock.replaceWith(panel);
+  // The input rides along because the confirmed run reads its value; it stays
+  // out of sight and out of the layout.
+  pw.hidden = true;
+  panel.append(pw);
 }
 
 function shortSpan(ms) {
@@ -367,13 +367,14 @@ async function decrypt() {
 }
 
 function showReadout(readout, focusTarget) {
-  // The password panel goes away the moment the paste is open: a decrypted
-  // paste has no use for it, and the readout takes its place.
-  const unlock = $('unlock');
-  const moveFocus = unlock.contains(document.activeElement);
-  $('pw').value = '';
-  unlock.hidden = true;
-  unlock.replaceWith(readout);
+  // The password panel goes away the moment the paste is open. After a burn
+  // confirmation it is already gone, so the readout replaces the confirmation
+  // instead. Either way exactly one panel is left standing.
+  const panel = $('unlock') || document.querySelector('.burn-confirm');
+  const moveFocus = panel.contains(document.activeElement);
+  const pw = $('pw');
+  if (pw) pw.value = '';
+  panel.replaceWith(readout);
   setReadError();
   if (moveFocus) focusTarget.focus({ preventScroll: true });
 }
