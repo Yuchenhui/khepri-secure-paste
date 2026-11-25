@@ -215,6 +215,9 @@ function setAttached(file) {
   editorSource.hidden = Boolean(file);
   $('wrapLabel').hidden = Boolean(file);
   editor.disabled = Boolean(file);
+  // The button keeps its place; only the wording says whether a file is
+  // already attached.
+  $('pick').textContent = file ? 'Change file' : 'Attach file';
   if (!file) { updateSize(); return; }
   $('fileName').textContent = file.name;
   $('fileMeta').textContent = formatBytes(file.size) + (file.type ? ' · ' + file.type : '');
