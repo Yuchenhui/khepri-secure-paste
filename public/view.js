@@ -387,17 +387,27 @@ $('pw').focus();
 if (SHORT_LINK_BASE) {
   const form = $('shortLookup');
   const input = $('shortCode');
+  const open = $('shortOpen');
   form.hidden = false;
 
-  input.addEventListener('input', () => { input.setCustomValidity(''); setReadError(); });
+  // The field only ever holds letters and digits: anything else never makes it
+  // in. maxlength owns the upper bound, so this only gates the lower one and
+  // Open stays disabled until there are at least three characters. No native
+  // validation bubble is involved, so nothing speaks in the browser's language.
+  input.addEventListener('input', () => {
+    const clean = input.value.replace(/[^A-Za-z0-9]/g, '');
+    if (clean !== input.value) {
+      const atEnd = input.selectionStart === input.value.length;
+      input.value = clean;
+      if (atEnd) input.setSelectionRange(clean.length, clean.length);
+    }
+    open.disabled = input.value.length < 3;
+    setReadError();
+  });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const code = input.value.trim();
-    if (!/^[A-Za-z0-9]{3,12}$/.test(code)) {
-      input.setCustomValidity('Enter a 3–12 character code using letters and digits.');
-      input.reportValidity();
-      return;
-    }
+    if (open.disabled) return;
     // Ask the shortener first, so a code that does not resolve is explained on
     // this page instead of dumping the reader on a bare 404.
     input.disabled = true;
@@ -430,6 +440,7 @@ if (SHORT_LINK_BASE) {
       } finally {
         clearTimeout(timer);
         input.disabled = false;
+        open.disabled = input.value.length < 3;
         if (['Checking that code…', 'Still checking…'].includes($('readError').textContent)) {
           setReadError();
         }

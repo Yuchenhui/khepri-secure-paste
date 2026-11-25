@@ -77,7 +77,7 @@ function fail(req, res, status, message) {
 }
 
 function validLength(length) {
-  return Number.isInteger(length) && length >= 3 && length <= 12;
+  return Number.isInteger(length) && length >= 3 && length <= 8;
 }
 // The mapping holds the key of every live paste, so the file is encrypted with
 // a key that never lands on disk: reading the database is not enough.
@@ -112,7 +112,7 @@ function openTarget(row) {
 
 if (!Number.isSafeInteger(TTL_MS) || TTL_MS <= 0) throw new Error('TTL_HOURS must be positive');
 
-if (!validLength(DEFAULT_LENGTH)) throw new Error('CODE_LEN must be an integer from 3 to 12');
+if (!validLength(DEFAULT_LENGTH)) throw new Error('CODE_LEN must be an integer from 3 to 8');
 if (!Number.isInteger(MAX_LINKS) || MAX_LINKS < 1) throw new Error('MAX_LINKS must be a positive integer');
 if (!Number.isInteger(MAX_IP_LINKS) || MAX_IP_LINKS < 1) throw new Error('MAX_IP_LINKS must be a positive integer');
 
@@ -217,7 +217,7 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     const target = pasteTarget(data.url);
     const length = data.len === undefined ? DEFAULT_LENGTH : data.len;
     if (!target) return fail(req, res, 400, 'invalid paste destination');
-    if (!validLength(length)) return fail(req, res, 400, 'len must be an integer from 3 to 12');
+    if (!validLength(length)) return fail(req, res, 400, 'len must be an integer from 3 to 8');
     // One client must not be able to fill the shared store on its own. The
     // quota counts the codes this client holds right now, not every code it
     // ever made: expired links free their slot.
@@ -231,7 +231,7 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   }
 
   if (!rateOk(ip)) return fail(req, res, 429, 'rate limited');
-  if (req.method === 'GET' && /^\/[A-Za-z0-9]{3,12}$/.test(pathname)) {
+  if (req.method === 'GET' && /^\/[A-Za-z0-9]{3,8}$/.test(pathname)) {
     const code = pathname.slice(1);
     const entry = qGet.get(code);
     if (!entry) return fail(req, res, 404, 'unknown code');

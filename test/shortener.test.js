@@ -112,14 +112,14 @@ describe('shortener', () => {
   });
 
   test('the requested length is honoured across the whole range', async () => {
-    for (const len of [3, 4, 6, 12]) {
+    for (const len of [3, 4, 6, 8]) {
       const r = await shorten(server, { url: pasteUrl(), len });
       assert.equal(r.status, 200);
       const link = (await r.text()).trim();
       assert.equal(link.slice(link.lastIndexOf('/') + 1).length, len);
     }
     assert.equal((await shorten(server, { url: pasteUrl(), len: 2 })).status, 400);
-    assert.equal((await shorten(server, { url: pasteUrl(), len: 13 })).status, 400);
+    assert.equal((await shorten(server, { url: pasteUrl(), len: 9 })).status, 400);
     assert.equal((await shorten(server, { url: pasteUrl(), len: '5' })).status, 400);
   });
 

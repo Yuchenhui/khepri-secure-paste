@@ -1,340 +1,678 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
 <meta charset="utf-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>New paste</title>
+
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
 <style>
+
   :root {
+
     color-scheme: light;
+
     /* Surfaces: a warm-grey paper, not a blue-grey screen. The editor is the
+
        only dark field on the page and stays the deepest tone in it. */
+
     --canvas: #f4f4f1;
+
     --paper: #fff;
+
     --ink: #1b2431;
+
     --muted: #5b6878;
+
     --line: #dfe3e8;
+
     --control: #8b98a7;
+
     --accent: #214fb8;
+
     --accent-hover: #1a419c;
+
     --accent-active: #16357e;
+
     --code-digit: #a23d09;
+
     --tint: #eef3fb;
+
     --editor: #1b2735;
+
     --editor-edge: #35485e;
+
     --editor-text: #f2f6fc;
+
     --editor-muted: #a7b6c9;
+
     --danger: #b3453f;
+
     --danger-text: #97362f;
+
     --warning: #8a5a1c;
+
     --success: #35784a;
+
     --mono: ui-monospace, "Cascadia Mono", Menlo, "DejaVu Sans Mono", Consolas, monospace;
+
     /* One shadow scale for the whole page: a hairline plus a soft lift. */
+
     --shadow-1: 0 1px 2px rgb(27 36 49 / 0.06), 0 0 0 0.5px rgb(27 36 49 / 0.04);
+
     --shadow-3: 0 1px 2px rgb(27 36 49 / 0.08), 0 16px 40px -12px rgb(27 36 49 / 0.18);
+
     --ease-out: cubic-bezier(.2, .8, .2, 1);
+
   }
+
   html { overflow-y: scroll; }
+
   @supports (scrollbar-gutter: stable) {
+
     html { overflow-y: auto; scrollbar-gutter: stable; }
+
   }
+
   *, *::before, *::after { box-sizing: border-box; }
+
   [hidden] { display: none !important; }
+
   body { margin: 0; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { width: min(calc(100% - 48px), 60rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
+
+  main { width: min(calc(100% - 48px), 60rem); margin: clamp(36px, 7vh, 80px) auto 40px; ; }
+
+  /* While the message card is up, the page keeps a slot for it: the card
+
+     never overlaps the heading and never crowds the panel under it. */
+
   .masthead { margin-bottom: 32px; }
+
   h1 { margin: 0; font-size: clamp(2rem, 4.4vw, 2.75rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.1; }
+
   .masthead p { max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
+
   .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-1); }
+
   /* The browser chrome carries the design too: selection, caret, focus. */
+
   ::selection { background: var(--accent); color: var(--paper); }
+
   textarea, input { caret-color: var(--accent); }
+
   :where(button, input, select, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
   a { color: var(--accent); text-underline-offset: .2em; }
+
   button, input, select, textarea { font: inherit; }
+
   input[type="checkbox"] { appearance: none; flex: none; width: 16px; height: 16px; margin: 0; border: 1px solid var(--control); border-radius: 4px; background: var(--paper); accent-color: var(--accent); cursor: pointer; transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out); }
+
   input[type="checkbox"]:hover { border-color: var(--accent); }
+
   input[type="checkbox"]:checked { border-color: var(--accent); background: var(--accent) center / 12px 12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3 3 7-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+
   @media (forced-colors: active) { input[type="checkbox"] { appearance: auto; } }
+
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--accent); color: var(--paper); font-size: .875rem; font-weight: 550; text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 160ms var(--ease-out); }
+
   .button:hover:not(:disabled) { background: var(--accent-hover); }
+
   .button:active:not(:disabled) { background: var(--accent-active); transform: translateY(1px); }
+
   .button.secondary { border-color: var(--line); background: var(--paper); color: var(--ink); }
+
   .button.secondary:hover:not(:disabled) { border-color: var(--control); background: var(--paper); color: var(--accent); }
+
   .button.secondary:active:not(:disabled) { background: var(--canvas); transform: translateY(1px); }
+
   .button:disabled { opacity: .55; cursor: not-allowed; }
+
   .bp-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+
   @keyframes spin { to { transform: rotate(1turn); } }
+
   .field { display: grid; gap: 7px; min-width: 0; }
+
   .field > label { font-size: .8125rem; font-weight: 550; letter-spacing: .01em; }
+
   .optional { color: var(--muted); font-weight: 400; }
+
   .input { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+
   .input:hover { border-color: var(--control); }
+
   .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(33 79 184 / 0.14); outline: none; }
+
   ::placeholder { color: var(--muted); opacity: 1; }
+
   .pw-wrap { position: relative; }
+
   .pw-wrap .input { padding-inline-end: 108px; }
+
   .pw-action { position: absolute; inset-block-start: 50%; inset-inline-end: 4px; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--control); cursor: pointer; }
+
   .pw-action:hover:not(:disabled) { background: var(--tint); color: var(--accent); }
+
   .pw-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
   .pw-action:disabled { opacity: .4; cursor: default; }
+
   .pw-action svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
   #pwGen { inset-inline-end: 72px; }
+
   #pwCopy { inset-inline-end: 38px; }
+
   #pwShow { inset-inline-end: 4px; }
+
   /* The note is two lines tall whether or not it has text, so the panel never
+
      changes height and the page does not jump. */
+
   .pw-note { min-height: 2.25rem; margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.5; }
+
   .note { margin: 0; font-size: .875rem; color: var(--muted); }
+
   .note--warn { color: var(--warning); }
+
   .err { margin: 0; color: var(--danger); }
+
   @media (max-width: 40rem) {
+
     main { width: calc(100% - 32px); margin-top: 32px; }
+
     .masthead { margin-bottom: 22px; }
+
   }
+
   @media (prefers-reduced-motion: reduce) { .bp-spinner { animation: none; } }
 
   .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, .48fr); align-items: stretch; }
+
   .editor { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 18px 22px 22px; border-radius: 13px 0 0 13px; background: var(--editor); color: var(--editor-text); }
+
   .editor-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 0 14px; }
+
   .editor-head > label { font-size: .8125rem; font-weight: 550; letter-spacing: .01em; }
+
   .editor-wrap { display: inline-flex; align-items: center; gap: 7px; margin-inline-start: auto; font-size: .8125rem; color: var(--editor-muted); cursor: pointer; transition: color 160ms var(--ease-out); }
+
   .editor-wrap:hover { color: var(--editor-text); }
+
   .editor-wrap input:not(:checked) { background: transparent; border-color: var(--editor-muted); }
+
   .editor-head .button { min-height: 30px; padding: 4px 10px; border-color: var(--editor-edge); background: transparent; color: var(--editor-text); font-size: .8125rem; }
+
   .editor-head .button:hover:not(:disabled) { background: #ffffff14; border-color: var(--editor-muted); }
+
   .file-state { align-self: start; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border: 1px dashed var(--editor-edge); border-radius: 8px; background: #ffffff08; font: .8125rem/1.5 var(--mono); color: var(--editor-text); }
+
   .file-state-name { min-width: 0; overflow-wrap: anywhere; }
+
   .file-state-meta { display: block; color: var(--editor-muted); font-size: .8125rem; }
+
   .size-state { margin: 10px 0 0; color: var(--editor-muted); font: .8125rem/1.5 var(--mono); }
+
   .size-state.over { color: var(--warning); }
+
   .size-hint { margin: 2px 0 0; color: var(--editor-muted); font-size: .75rem; line-height: 1.5; }
+
   .editor-source { display: grid; grid-template-columns: calc(22px + var(--line-digits, 1) * 1ch) minmax(0, 1fr); border: 1px solid var(--editor-edge); border-radius: 10px; background: #ffffff05; font: .875rem/1.7 var(--mono); }
+
   .line-numbers { position: relative; overflow: hidden; border-right: 1px solid var(--editor-edge); color: var(--editor-muted); text-align: right; user-select: none; }
+
   .line-numbers pre { position: absolute; inset: 0 8px auto 0; margin: 0; padding-top: 14px; font: inherit; white-space: pre; }
+
   .editor textarea { width: 100%; min-height: 15rem; resize: vertical; padding: 14px 16px; border: 0; border-radius: 0 9px 9px 0; background: transparent; color: inherit; color-scheme: dark; font: inherit; white-space: pre; tab-size: 4; }
+
   .editor-source.wrap { grid-template-columns: minmax(0, 1fr); }
+
   .editor-source.wrap .line-numbers { display: none; }
+
   .editor-source.wrap textarea { border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
   .editor textarea::placeholder { color: var(--editor-muted); }
+
   .editor textarea:focus-visible { outline-color: var(--editor-muted); }
+
   .settings { display: grid; align-content: start; gap: 22px; min-width: 0; padding: 24px; }
+
   .settings h2 { margin: 0; font-size: .6875rem; font-weight: 550; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
   .lifetime { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+
   .lifetime legend { margin-bottom: 10px; padding: 0; font-size: .6875rem; font-weight: 550; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
   .checks { display: grid; gap: 2px; margin: 0; padding: 16px 0 0; border: 0; border-top: 1px solid var(--line); }
+
   .checks label { display: flex; align-items: center; gap: 10px; min-height: 32px; font-size: .8125rem; cursor: pointer; }
+
   .settings .button { justify-self: stretch; min-height: 44px; }
+
   /* The same floating card as the read page. */
+
   /* Hidden until there is a message, like the read page's card. */
-  .create-feedback { display: none; position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(34rem, calc(100% - 32px)); z-index: 10; align-items: center; gap: 12px; }
+
+  /* The card sits in the page, above the content, and takes its own row:
+
+     nothing floats over it and it floats over nothing. */
+
+  .create-feedback { display: none; align-items: center; gap: 12px; width: min(34rem, calc(100% - 32px)); margin: 16px auto 0; }
+
   .create-feedback:has(#createError:not(:empty)) {
+
     display: flex; padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper);
+
     box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
+
   }
+
   /* A drawn alert mark, not a coloured dot: on a white card a plain dot reads
+
      as decoration, and an exclamation reads as the problem it is. */
+
   .create-feedback:has(#createError:not(:empty))::before {
+
     content: ""; flex: none; width: 18px; height: 18px;
+
     background: var(--danger);
+
     clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+
   }
+
   #createError { flex: 1; min-width: 0; margin: 0; font-size: .875rem; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   #createError:empty ~ * { display: none; }
+
   @media (prefers-reduced-motion: no-preference) {
+
     .create-feedback:has(#createError:not(:empty)) { animation: feedback-in 160ms ease-out; }
+
     @keyframes feedback-in { from { opacity: 0; transform: translateY(-6px); } }
+
   }
+
   .dismiss-error { display: grid; place-items: center; flex: none; width: 24px; height: 24px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+
   .dismiss-error:hover { background: var(--tint); color: var(--ink); }
+
   .dismiss-error svg { pointer-events: none; }
+
   /* Only the arrow moves: the native one is drawn by the platform a few pixels
+
      from the border, so it is replaced by one placed further in. Control width,
+
      height and text position stay as they are. */
+
   select.input {
+
     appearance: none;
+
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23182435' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+
     background-repeat: no-repeat;
+
     background-position: right 20px center;
+
     background-size: 11px 8px;
+
     padding-right: 38px;
+
   }
+
   .page-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-top: 12px; padding-inline: clamp(12px, 2vw, 20px); }
+
   .privacy { max-inline-size: 68ch; overflow-wrap: anywhere; text-wrap: balance; }
+
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
+
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
+
   .source-link svg { width: 20px; height: 20px; fill: currentColor; }
+
   /* The signature moment: the code is the only thing on this card that is
+
      large. It sits on the page's own ground — no second card inside the card
+
      — with the actions demoted to a plinth underneath. */
+
   #out { margin-top: 24px; padding: 24px 28px 22px; }
+
   #shortState:not(:empty), #shortNote:not(:empty) { margin: 14px 0 0; }
+
   .result-main { display: grid; gap: 18px; min-width: 0; }
+
   .result-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+
   .result-head h2 { margin: 0; font-size: .6875rem; font-weight: 550; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
   #shortOrigin { margin: 0; font: .75rem/1.5 var(--mono); color: var(--muted); }
+
   .result-plate { display: block; margin: 0; padding: 6px 0 2px; }
+
   .result-link { display: block; overflow-wrap: anywhere; }
+
   .code { display: block; color: var(--ink); font: 550 clamp(2.5rem, 6vw, 3.5rem)/1 var(--mono); letter-spacing: .04em; font-variant-numeric: slashed-zero; overflow-wrap: anywhere; }
+
   /* Digits in a different colour so y/O, 0/O and 1/l stay readable when the
+
      code is read off the screen or typed by hand. */
+
   .code .digit { color: var(--code-digit); }
+
   .code.long { font: .875rem/1.6 var(--mono); letter-spacing: 0; }
+
   .result-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
+
   .result-actions .button.secondary { min-height: 36px; font-size: .8125rem; }
+
   .qr { display: grid; justify-items: start; gap: 8px; margin-top: 16px; }
+
   .qr canvas { display: block; border-radius: 6px; background: #ffffff; }
+
   details { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+
   summary { width: fit-content; color: var(--muted); font-size: .8125rem; cursor: pointer; transition: color 160ms var(--ease-out); }
+
   .advanced { margin: 0; padding: 0; border: 0; }
+
   .advanced summary { min-height: 30px; line-height: 30px; }
+
   .advanced summary:hover { color: var(--ink); }
+
   .advanced .field { margin-top: 10px; }
+
   .length-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+
   .length-label output { color: var(--accent); font-variant-numeric: tabular-nums; }
+
   .length-slider { width: 100%; height: 40px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+
   @media (forced-colors: none) {
+
     .length-slider { appearance: none; background: transparent; }
+
     .length-slider::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: var(--line); }
+
     .length-slider::-moz-range-track { height: 8px; border-radius: 4px; background: var(--line); }
+
     .length-slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; margin-top: -6px; border: 0; border-radius: 50%; background: var(--accent); }
+
     .length-slider::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--accent); }
+
   }
+
   .link-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+
   .link-row a { flex: 1; min-width: 0; font: .8125rem/1.5 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   @media (max-width: 40rem) {
+
     main { width: calc(100% - 32px); margin-top: 32px; }
+
     /* One column, the editor first: writing the paste is the whole job on a
+
        phone, so it must not be pushed below a wall of settings. */
+
     .workbench { grid-template-columns: minmax(0, 1fr); }
+
     .editor { padding: 14px 16px 16px; border-radius: 13px 13px 0 0; }
+
     .editor-source { font-size: .8125rem/1.7 var(--mono); }
+
     .editor textarea { min-height: 9rem; padding: 12px 14px; }
+
     .settings { gap: 18px; padding: 18px 16px 20px; }
+
     #out { margin-top: 16px; padding: 20px 18px; }
+
     .code { font-size: clamp(2rem, 11vw, 2.75rem); }
+
   }
+
 </style>
+
 </head>
+
 <body>
+
+  <div class="create-feedback">
+
+    <p id="createError" class="note err" role="alert"></p>
+
+    <button id="dismissCreateError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
+
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+
+    </button>
+
+  </div>
 <main>
+
   <header class="masthead">
+
     <h1>New paste</h1>
+
     <p>Share text, code, or a small file using an encrypted link.</p>
+
   </header>
 
   <div class="workbench panel">
+
     <div class="editor">
+
       <div class="editor-head">
+
         <label for="t">Paste content</label>
+
         <input id="file" type="file" hidden>
+
         <label id="wrapLabel" class="editor-wrap"><input id="autoWrap" type="checkbox">Auto wrap</label>
+
         <button id="pick" class="button secondary" type="button">Attach file</button>
+
       </div>
+
       <p id="fileState" class="file-state" hidden>
+
         <span class="file-state-name"><span id="fileName"></span><span id="fileMeta" class="file-state-meta"></span></span>
+
         <button id="dropFile" class="button secondary" type="button">Remove</button>
+
       </p>
+
       <div class="editor-source">
+
         <div class="line-numbers" aria-hidden="true"><pre id="editorNumbers">1</pre></div>
+
         <textarea id="t" wrap="off" spellcheck="false" placeholder="Paste text, commands, or a script"></textarea>
+
       </div>
+
       <p id="sizeState" class="size-state" role="status"></p>
+
       <p class="size-hint">Limit 1 MiB once encrypted, base64 and JSON included — about 786,000 ASCII characters, 262,000 CJK or 196,000 emoji; one file up to 256 KB.</p>
+
     </div>
 
     <section class="settings" aria-labelledby="settingsTitle">
+
       <h2 id="settingsTitle">Share settings</h2>
+
       <div class="field">
+
         <label for="pw">Password <span class="optional">(optional)</span></label>
+
         <div class="pw-wrap">
+
           <input id="pw" class="input" type="password" placeholder="No password" autocomplete="new-password">
+
           <button id="pwGen" class="pw-action" type="button" title="Generate a random password" aria-label="Generate a random password">
+
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+
           </button>
+
           <button id="pwCopy" class="pw-action" type="button" title="Copy password" aria-label="Copy password" disabled>
+
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden><polyline points="20 6 9 17 4 12"></polyline></svg>
+
           </button>
+
           <button id="pwShow" class="pw-action" type="button" title="Show password" aria-label="Show password">
+
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+
           </button>
+
         </div>
+
         <p id="pwNote" class="pw-note" role="status"></p>
+
       </div>
+
       <fieldset class="lifetime">
+
         <legend>Link lifetime</legend>
+
         <div class="field">
+
           <label for="ttl">Expires after</label>
+
           <select id="ttl" class="input"></select>
+
         </div>
+
         <div class="field">
+
           <label for="reads">Read limit</label>
+
           <select id="reads" class="input">
+
             <option value="1" selected>Burn after reading</option>
+
             <option value="3">3 reads</option>
+
             <option value="5">5 reads</option>
+
             <option value="0">Unlimited</option>
+
           </select>
+
         </div>
+
       </fieldset>
+
       <fieldset class="checks" aria-label="Reading restrictions">
+
         <label><input type="checkbox" id="pin"> Lock to the first reader's IP</label>
+
       </fieldset>
+
       <button id="go" class="button" type="button">Create link</button>
+
       <details class="advanced">
+
         <summary>Advanced options</summary>
+
         <div class="field">
+
           <label for="len" class="length-label">Short code length <output id="lenValue" for="len" aria-hidden="true">5</output></label>
+
           <input id="len" class="length-slider" type="range" min="3" max="8" step="1" value="5">
+
         </div>
+
       </details>
+
     </section>
-  </div>
-  <div class="create-feedback">
-    <p id="createError" class="note err" role="alert"></p>
-    <button id="dismissCreateError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
-      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </button>
+
   </div>
 
+
   <section id="out" class="panel" aria-labelledby="plateCap" hidden>
+
     <div class="result-main">
+
       <div class="result-head">
+
         <h2 id="plateCap">Paste link</h2>
+
         <span id="shortOrigin" hidden></span>
+
       </div>
+
       <p class="result-plate"><span class="result-link"><span class="code" id="mainCode"></span></span></p>
+
       <div class="result-actions">
+
         <a id="openUrl" class="button secondary" href="#" target="_blank" rel="noreferrer">Open</a>
+
         <button id="copyMain" class="button" type="button">Copy link</button>
+
         <button id="showQr" class="button secondary" type="button" aria-expanded="false">QR code</button>
+
       </div>
+
     </div>
+
     <div id="qrBox" class="qr" hidden>
+
       <canvas id="qrCanvas" role="img" aria-label="QR code for this paste link"></canvas>
+
       <p class="note">Scan to open the link on another device. Same key, same lifetime.</p>
+
     </div>
+
     <p id="shortState" class="note" role="status"></p>
+
     <p id="shortNote" class="note"></p>
+
     <details id="longWrap" hidden>
+
       <summary>Full link</summary>
+
       <div class="link-row">
+
         <a id="longUrl" href="#" target="_blank" rel="noreferrer"></a>
+
         <button id="copyLong" class="button secondary" type="button">Copy full link</button>
+
       </div>
+
     </details>
+
   </section>
+
   <footer class="page-footer note">
+
     <p class="privacy note">Your browser encrypts the paste before upload. The shortener receives the link key, but never your password.</p>
+
     <a class="source-link" href="https://github.com/Yuchenhui/khepri-secure-paste" target="_blank" rel="noreferrer" aria-label="Source on GitHub" title="Source on GitHub">
+
       <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+
     </a>
+
   </footer>
+
 </main>
 
 <script src="/app.js"></script>
+
 </body>
+
 </html>
+
