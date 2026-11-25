@@ -67,14 +67,18 @@
   .reader { max-width: 40rem; }
   .unlock { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 14px 20px 20px; }
   .unlock .field { flex: 1 1 14rem; }
-  .short-lookup { --lookup-width: 15rem; position: relative; z-index: 1; margin-block-start: 10px; }
+  .short-lookup { --lookup-width: 19rem; position: relative; z-index: 1; margin-block-start: 10px; }
   .short-lookup summary { padding: 3px 10px; border-radius: 8px; background: var(--tint); box-shadow: inset 0 0 0 1px var(--line); color: var(--accent); font-size: .875rem; font-weight: 650; cursor: pointer; }
   .short-lookup summary:hover { color: var(--accent-hover); box-shadow: inset 0 0 0 1px var(--control); }
   /* The panel floats over the page, so it must not take width from the title
      column: it is anchored to the left of the summary and overlaps nothing. */
-  .short-lookup form { position: absolute; inset-block-start: 50%; inset-inline-start: auto; inset-inline-end: 100%; translate: 0 -50%; display: flex; align-items: center; gap: 8px; width: var(--lookup-width); padding: 10px 12px; box-shadow: 0 12px 24px -8px #18243550, 0 3px 8px #18243526; }
+  .short-lookup form { position: absolute; inset-block-start: 50%; inset-inline-start: auto; inset-inline-end: 100%; translate: 0 -50%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: var(--lookup-width); padding: 12px 14px; border-radius: 12px; box-shadow: 0 12px 28px -10px #18243559; }
   .short-lookup form::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: -3px; width: 8px; height: 8px; transform: translateY(-50%) rotate(45deg); border: 1px solid var(--line); border-width: 1px 1px 0 0; background: var(--paper); pointer-events: none; }
-  .short-lookup .input { min-width: 0; padding-block: 10px 6px; font-family: "Cascadia Mono", Menlo, "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric: slashed-zero; }
+  .short-lookup .input { flex: 1 1 8rem; min-width: 0; padding-block: 10px 6px; font-family: "Cascadia Mono", Menlo, "DejaVu Sans Mono", "Courier New", monospace; font-variant-numeric: slashed-zero; }
+  /* The lookup message sits under the row and wraps to the panel's width,
+     instead of squeezing the input and the button into a sliver. */
+  #lookupError { flex: 1 1 100%; margin: 2px 0 0; font-size: .8125rem; line-height: 1.45; }
+  #lookupError:empty { display: none; }
   #body:not(:empty) { margin-top: 24px; }
   .unlock-error { padding: 22px 24px 24px; }
   .unlock-error h2 { margin: 0 0 8px; font-size: 1.125rem; font-weight: 650; letter-spacing: -.01em; }
@@ -107,7 +111,8 @@
   @media (max-width: 40rem) {
     .unlock { padding: 10px 16px 16px; }
     #go { margin-inline-start: auto; }
-    .short-lookup form { inset-block-start: calc(100% + 4px); inset-inline: auto 0; translate: none; width: min(18rem, calc(100vw - 48px)); }
+    .short-lookup { --lookup-width: min(19rem, calc(100vw - 48px)); }
+    .short-lookup form { inset-block-start: calc(100% + 4px); inset-inline: auto 0; translate: none; width: var(--lookup-width); }
     .short-lookup form::before { inset-block-start: -3px; inset-inline-end: 60px; transform: rotate(45deg); border-width: 1px 0 0 1px; }
   }
 </style>
