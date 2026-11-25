@@ -127,8 +127,12 @@
   .checks label { display: flex; align-items: center; gap: 10px; min-height: 32px; font-size: .8125rem; cursor: pointer; }
   .settings .button { justify-self: stretch; min-height: 44px; }
   /* The same floating card as the read page. */
-  .create-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(34rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 12px; }
-  .create-feedback:has(#createError:not(:empty)) { padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper); box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16); }
+  /* Hidden until there is a message, like the read page's card. */
+  .create-feedback { display: none; position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(34rem, calc(100% - 32px)); z-index: 10; align-items: center; gap: 12px; }
+  .create-feedback:has(#createError:not(:empty)) {
+    display: flex; padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper);
+    box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
+  }
   /* A drawn alert mark, not a coloured dot: on a white card a plain dot reads
      as decoration, and an exclamation reads as the problem it is. */
   .create-feedback:has(#createError:not(:empty))::before {
@@ -172,7 +176,7 @@
   #shortOrigin { margin: 0; font: .75rem/1.5 var(--mono); color: var(--muted); }
   .result-plate { display: block; margin: 0; padding: 6px 0 2px; }
   .result-link { display: block; overflow-wrap: anywhere; }
-  .code { display: block; color: var(--ink); font: 550 clamp(3rem, 8vw, 4.5rem)/1 var(--mono); letter-spacing: .04em; font-variant-numeric: slashed-zero; overflow-wrap: anywhere; }
+  .code { display: block; color: var(--ink); font: 550 clamp(2.5rem, 6vw, 3.5rem)/1 var(--mono); letter-spacing: .04em; font-variant-numeric: slashed-zero; overflow-wrap: anywhere; }
   /* Digits in a different colour so y/O, 0/O and 1/l stay readable when the
      code is read off the screen or typed by hand. */
   .code .digit { color: var(--code-digit); }
@@ -209,7 +213,7 @@
     .editor textarea { min-height: 9rem; padding: 12px 14px; }
     .settings { gap: 18px; padding: 18px 16px 20px; }
     #out { margin-top: 16px; padding: 20px 18px; }
-    .code { font-size: clamp(2.25rem, 13vw, 3rem); }
+    .code { font-size: clamp(2rem, 11vw, 2.75rem); }
   }
 </style>
 </head>

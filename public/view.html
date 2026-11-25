@@ -86,18 +86,23 @@
      pixels wide and sits beside the title, in the masthead's second column.
      The message is out of the flow: an error never grows the page. */
   .lookup { position: relative; display: flex; align-items: center; gap: 6px; margin-block-start: 8px; padding: 6px; border-radius: 10px; }
-  .lookup .input { width: 7.5ch; min-width: 0; min-height: 36px; padding: 6px 8px; }
+  .lookup .input { width: 11ch; min-width: 0; min-height: 36px; padding: 6px 10px; }
   .lookup .button { min-height: 36px; padding: 6px 12px; }
   /* Every message on the site is the same thing: a card floating at the top of
      the page. The lookup one is anchored to its own row, because it explains
      the field it sits next to. */
   /* One floating card for every message on the site: wide enough for the
      longest message on a single line, so the page never grows twice. */
-  .read-feedback { position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(34rem, calc(100% - 32px)); z-index: 10; display: flex; align-items: center; gap: 12px; }
-  .read-feedback:has(#readError:not(:empty)) { padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper); box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16); }
+  /* Hidden until there is a message. The paragraph holds two spans, so it is
+     never :empty; the card asks whether either span carries text. */
+  .read-feedback { display: none; position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(34rem, calc(100% - 32px)); z-index: 10; align-items: center; gap: 12px; }
+  .read-feedback:has(#readErrorTitle:not(:empty)), .read-feedback:has(#readErrorBody:not(:empty)) {
+    display: flex; padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper);
+    box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
+  }
   /* A drawn alert mark, not a coloured dot: on a white card a plain dot reads
      as decoration, and an exclamation reads as the problem it is. */
-  .read-feedback:has(#readError:not(:empty))::before {
+  .read-feedback:has(#readErrorTitle:not(:empty))::before, .read-feedback:has(#readErrorBody:not(:empty))::before {
     content: ""; flex: none; width: 18px; height: 18px;
     background: var(--danger);
     clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
@@ -105,9 +110,11 @@
   #readError { flex: 1; min-width: 0; margin: 0; font-size: .875rem; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #readErrorTitle { font-weight: 650; }
   #readErrorBody { color: var(--muted); }
-  #readError:empty ~ * { display: none; }
+  /* The space between the title and the body is generated, so neither span
+     needs a text node that would defeat :empty. */
+  #readErrorTitle:not(:empty)::after { content: " "; }
   @media (prefers-reduced-motion: no-preference) {
-    .read-feedback:has(#readError:not(:empty)) { animation: feedback-in 160ms ease-out; }
+    .read-feedback:has(#readErrorTitle:not(:empty)), .read-feedback:has(#readErrorBody:not(:empty)) { animation: feedback-in 160ms ease-out; }
     @keyframes feedback-in { from { opacity: 0; transform: translateY(-6px); } }
   }
   .dismiss-error { display: grid; place-items: center; flex: none; width: 24px; height: 24px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
@@ -174,7 +181,7 @@
     <button id="go" class="button" type="button">Decrypt</button>
   </div>
   <div class="read-feedback">
-    <p id="readError" class="note err" role="alert"><span id="readErrorTitle"></span> <span id="readErrorBody"></span></p>
+    <p id="readError" class="note err" role="alert"><span id="readErrorTitle"></span><span id="readErrorBody"></span></p>
     <button id="dismissReadError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
