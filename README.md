@@ -79,6 +79,13 @@ docker run -d --name khepri-short -p 8081:8080 \
 Give the core `SHORTENER_URL=http://localhost:8081` and the two services will
 hand out short links.
 
+## Versions
+
+A release carries three tags on the image: `latest`, the commit it was built
+from (`936dea2`) and the day it went out (`v2026.11.25`). Pin the commit when
+you want to stay put, pull `latest` when you want the newest. The same string
+is used as the git tag.
+
 ## Limits
 
 1 MiB per request, 256 KB per file, 5 GiB and 200000 pastes on disk, 100000

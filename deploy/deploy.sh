@@ -39,6 +39,20 @@ chmod -R go-w "$APP_DIR"
 # stalls on this host, which leaves apk hanging inside the build.
 docker build --network host -q -t "$IMAGE" .
 
+# A release carries three tags: the commit it was built from, the day it went
+# out, and latest. The commit is what you pin, the date is what you read.
+SHA=$(git rev-parse --short=7 HEAD 2>/dev/null || echo "unknown")
+VERSION="v$(date +%Y.%m.%d)"
+if docker image inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
+  n=2
+  while docker image inspect "$IMAGE:$VERSION-$n" >/dev/null 2>&1; do n=$((n + 1)); done
+  VERSION="$VERSION-$n"
+fi
+docker tag "$IMAGE" "$IMAGE:$SHA"
+docker tag "$IMAGE" "$IMAGE:$VERSION"
+docker tag "$IMAGE" "$IMAGE:latest"
+echo "==> release $VERSION ($SHA)"
+
 # ---- 3. containers -------------------------------------------------------
 # --read-only: nothing is written outside the paste volume, which holds the
 # SQLite database of ciphertext. --cap-drop ALL + no-new-privileges above all.
