@@ -142,6 +142,9 @@ function makeSpinner() {
 let confirmedOnce = false;
 
 function askToReadOnce() {
+  // Swaps the unlock panel only. Replacing the body here would strand the
+  // references the rest of the flow still holds, and the password box would
+  // outlive the paste it belongs to.
   const p = document.createElement('p');
   p.className = 'note';
   p.textContent = 'This paste allows one read. Opening it now deletes it from the server.';
@@ -156,7 +159,12 @@ function askToReadOnce() {
   const panel = document.createElement('section');
   panel.className = 'panel readout';
   panel.append(inner);
-  $('body').replaceChildren(panel);
+  // The confirmation sits between the password field and the button: the field
+  // stays in the DOM because the confirmed run reads it again, and the Decrypt
+  // button is replaced so there is exactly one way forward.
+  const unlock = $('unlock');
+  unlock.querySelector('.field').after(panel);
+  $('go').replaceWith(document.createElement('span'));
 }
 
 function shortSpan(ms) {
@@ -183,22 +191,32 @@ function lifetimeNote(meta) {
   return p;
 }
 
-async function decrypt() {
+// The button that started this, if it is still on the page. The burn
+// confirmation replaces the panel, so the second run has no button to dress up.
+function activeButton() {
   const btn = $('go');
-  if (btn.disabled) return;
+  return btn && !btn.disabled ? btn : null;
+}
+
+async function decrypt() {
   setReadError();
   if (!/^[0-9a-f]{16}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(frag)) {
     setReadError('Malformed link', 'The id or the key is missing.');
     return;
   }
 
-  btn.disabled = true;
-  // Fast requests keep the normal button appearance without allowing another submission.
-  const busyTimer = setTimeout(() => {
-    btn.setAttribute('aria-busy', 'true');
-    btn.textContent = 'Decrypting';
-    btn.prepend(makeSpinner());
-  }, 250);
+  const btn = activeButton();
+  if (btn) {
+    btn.disabled = true;
+    // Fast requests keep the normal button appearance without allowing another submission.
+    var busyTimer = setTimeout(() => {
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = 'Decrypting';
+      btn.prepend(makeSpinner());
+    }, 250);
+  } else {
+    var busyTimer = null;
+  }
 
   try {
     let d;
@@ -336,20 +354,24 @@ async function decrypt() {
     setReadError('Wrong password', 'Try again, or ask for a new link.');
   } finally {
     clearTimeout(busyTimer);
-    btn.disabled = false;
-    if (btn.hasAttribute('aria-busy')) {
-      btn.removeAttribute('aria-busy');
-      btn.textContent = 'Decrypt';
+    if (btn) {
+      btn.disabled = false;
+      if (btn.hasAttribute('aria-busy')) {
+        btn.removeAttribute('aria-busy');
+        btn.textContent = 'Decrypt';
+      }
     }
   }
 }
 
 function showReadout(readout, focusTarget) {
+  // The password panel goes away the moment the paste is open: a decrypted
+  // paste has no use for it, and the readout takes its place.
   const unlock = $('unlock');
   const moveFocus = unlock.contains(document.activeElement);
-  $('body').replaceChildren(readout);
   $('pw').value = '';
   unlock.hidden = true;
+  unlock.replaceWith(readout);
   setReadError();
   if (moveFocus) focusTarget.focus({ preventScroll: true });
 }
