@@ -94,8 +94,28 @@ with AES-256-GCM, and POSTs the ciphertext to `/api/paste`. The key travels in
 the URL fragment, so it never reaches the server — the agent has to do the
 crypto itself, there is no "upload this text" endpoint.
 
+### The `secure-online-clipboard` skill
+
+The whole protocol is packaged as an agent skill, with four scripts that are
+already tested against a running deployment. Point an agent at the skill and it
+can upload, take a short code, and read back, without reimplementing any of the
+crypto.
+
+| Script | Does | Needs |
+|---|---|---|
+| `secure-online-clipboard-push.cjs` | upload | Node 18+, no packages |
+| `secure-online-clipboard-fetch.cjs` | read back | Node 18+, no packages |
+| `secure-online-clipboard-push.py` | upload | Python 3.8+ + `cryptography` |
+| `secure-online-clipboard-fetch.py` | read back | Python 3.8+ + `cryptography` |
+
+The skill covers every parameter, the field-by-field request contract, the error
+table, and how to pick a parameter set for a given situation. PBKDF2 uses the
+standard library on both sides; only AES-GCM needs a package in Python.
+
+### Parameters
+
 ```bash
-node khepri-push.cjs "the content" --short --len 6 --ttl 3600 --burn
+node secure-online-clipboard-push.cjs "the content" --short --len 6 --ttl 3600
 ```
 
 | Flag | Meaning |
@@ -108,23 +128,29 @@ node khepri-push.cjs "the content" --short --len 6 --ttl 3600 --burn
 | `--reads <0-20>` | Read limit; 0 means unlimited |
 | `--pin-ip` | Bind to the first reader's address |
 | `--password <pw>` | Add a password — send it over a separate channel |
+| `--base <url>` | Deployment to talk to (default `$KHEPRI_BASE`) |
+| `--quiet` | Print only the link |
 
-`/s/shorten` answers a caller with no `Origin` header, so a CLI agent can get a
-short code; a wrong `Origin` is still refused. The shortener sees the full URL
-including the key, which is the same trade-off the web page makes.
-
-Reading back is symmetric — the link alone is enough, no extra secret to keep:
+Reading back takes a long link or a bare short code, and needs nothing beyond
+the link itself — the read proof is recoverable from the claim with the key,
+which is what the browser does:
 
 ```bash
-node khepri-fetch.cjs "https://paste.vantolab.com/?<id>#<key>" --out ./file.bin
+node secure-online-clipboard-fetch.cjs "https://paste.vantolab.com/?<id>#<key>" --out ./file.bin
+node secure-online-clipboard-fetch.cjs a0k --out ./file.bin
 ```
 
 A file uploaded with `--file` comes back as the same name and the same bytes; a
 text paste prints. A paste made with `--password` needs the same password, and a
 wrong one fails the authentication instead of returning garbage.
 
-Full field-by-field contract, both zero-dependency reference clients, and the
-error table are in the `khepri-paste` skill.
+`/s/shorten` answers a caller with no `Origin` header, so a CLI agent can get a
+short code; a wrong `Origin` is still refused. The shortener sees the full URL
+including the key, which is the same trade-off the web page makes.
+
+Note that neither `curl` nor `openssl enc` can decrypt this protocol: curl has
+no symmetric-cipher tooling, and `openssl enc` refuses AEAD ciphers outright. A
+reader needs Node 18+ or Python 3.8+ with `cryptography`.
 
 ## Versions
 
