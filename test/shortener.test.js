@@ -142,6 +142,12 @@ describe('shortener', () => {
     const wrong = await shorten(server, { url: pasteUrl() }, { Origin: 'https://evil.test' });
     assert.equal(wrong.status, 403);
 
+    // A caller with no Origin at all is a CLI agent, not a browser: it has no
+    // origin to declare and is let through. The wrong Origin above is still
+    // refused, so another site cannot drive this endpoint from a browser.
+    const headerless = await shorten(server, { url: pasteUrl() }, { 'x-forwarded-for': '10.9.0.7' });
+    assert.equal(headerless.status, 200);
+
     const preflight = await fetch(server.base + '/shorten', {
       method: 'OPTIONS',
       headers: { Origin: ORIGIN, 'x-forwarded-for': '10.9.0.3' },

@@ -87,6 +87,35 @@ docker run -d --name khepri-short -p 8081:8080 \
 Give the core `SHORTENER_URL=http://localhost:8081` and the two services will
 hand out short links.
 
+## Programmatic access
+
+An agent can upload without a browser: it generates the key locally, encrypts
+with AES-256-GCM, and POSTs the ciphertext to `/api/paste`. The key travels in
+the URL fragment, so it never reaches the server — the agent has to do the
+crypto itself, there is no "upload this text" endpoint.
+
+```bash
+node khepri-push.cjs "the content" --short --len 6 --ttl 3600 --burn
+```
+
+| Flag | Meaning |
+|---|---|
+| `--file <path>` | Attach a file instead of text (limit 512 KB) |
+| `--short` | Also ask for a short code |
+| `--len <3-8>` | Short code length (default 5) |
+| `--ttl <seconds>` | Lifetime, 60 to 604800 (default 21600) |
+| `--burn` | Burn after one read |
+| `--reads <0-20>` | Read limit; 0 means unlimited |
+| `--pin-ip` | Bind to the first reader's address |
+| `--password <pw>` | Add a password — send it over a separate channel |
+
+`/s/shorten` answers a caller with no `Origin` header, so a CLI agent can get a
+short code; a wrong `Origin` is still refused. The shortener sees the full URL
+including the key, which is the same trade-off the web page makes.
+
+Full field-by-field contract, the zero-dependency reference implementation, and
+the error table are in the `khepri-paste` skill.
+
 ## Versions
 
 A release is one tag: the base version, the minute it was built and the commit

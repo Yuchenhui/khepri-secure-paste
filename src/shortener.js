@@ -199,8 +199,15 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   }
   if (pathname === '/shorten') {
     res.setHeader('Vary', 'Origin');
-    if (req.headers.origin !== pasteOrigin) return fail(req, res, 403, 'origin not allowed');
-    res.setHeader('Access-Control-Allow-Origin', pasteOrigin);
+    // A browser on the paste origin may ask, and so may a caller that sends no
+    // Origin at all: a CLI agent has no origin to declare, and refusing it would
+    // leave programmatic callers with no way to get a short code. A wrong Origin
+    // is still refused, so another site cannot drive this endpoint from a
+    // browser. Everything below is unchanged: the target must point at the paste
+    // origin, and the rate limit and the per-client quota are per IP either way.
+    const origin = req.headers.origin;
+    if (origin !== undefined && origin !== pasteOrigin) return fail(req, res, 403, 'origin not allowed');
+    if (origin === pasteOrigin) res.setHeader('Access-Control-Allow-Origin', pasteOrigin);
     if (!rateOk(ip)) return fail(req, res, 429, 'rate limited');
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
