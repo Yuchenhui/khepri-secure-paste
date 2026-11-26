@@ -44,9 +44,15 @@
      lookup, in that order. Three columns so the lookup keeps its place at the
      end whether or not the title is speaking. */
 
-  .masthead { display: grid; grid-template-columns: auto auto 1fr; align-items: center; justify-content: start; column-gap: 18px; margin-bottom: 32px; }
+  /* One masthead for both pages: the title and its message on the left, the
+     short-code lookup held at the far end. Two sections, so the lookup keeps
+     its place whether or not the title is speaking. */
+
+  .masthead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 18px; margin-bottom: 32px; }
+
+  .masthead-lead { display: flex; align-items: center; gap: 18px; min-width: 0; }
   h1 { margin: 0; font-size: clamp(2rem, 4.4vw, 2.75rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.1; }
-  .masthead p { grid-column: 1 / -1; max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
+  .masthead-note { grid-column: 1 / -1; max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
   .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-1); }
   ::selection { background: var(--accent); color: var(--paper); }
   :where(button, input, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
@@ -102,14 +108,14 @@
      The message is out of the flow: an error never grows the page. */
 /* The short-code lookup: a handful of characters beside the title. */
 
-  .lookup { position: relative; display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 10px; }
+  /* The lookup holds the far end of the row, whatever else happens on the
+     left. */
+
+  .lookup { grid-column: 2; justify-self: end; position: relative; display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 10px; }
 
   .lookup .input { width: 13ch; min-width: 0; min-height: 36px; padding: 6px 10px; }
 
-  .lookup .button { min-height: 36px; padding: 6px 12px; }/* The lookup sits at the end of the row, right-aligned, and keeps its place
-     whether or not the title is speaking. */
-
-  .lookup { justify-self: end; }
+  .lookup .button { min-height: 36px; padding: 6px 12px; }
   /* Every message on the site is the same thing: a card floating at the top of
      the page. The lookup one is anchored to its own row, because it explains
      the field it sits next to. */
@@ -241,7 +247,14 @@
     #go { margin-inline-start: auto; }
     /* The lookup drops under the title rather than squeezing it. */
     .masthead { grid-template-columns: minmax(0, 1fr); }
-    .lookup { justify-self: start; margin-block-start: 12px; }
+    .lookup { grid-column: 1; justify-self: start; margin-block-start: 12px; }
+    /* Too narrow to hold the title and its bubble side by side: the bubble
+       drops below the title and its arrow goes quiet, because there is no
+       title edge left to point at. */
+    .masthead-lead { flex-wrap: wrap; row-gap: 12px; }
+    .read-feedback { max-width: none; }
+    .read-feedback:has(#readErrorTitle:not(:empty))::before,
+    .read-feedback:has(#readErrorBody:not(:empty))::before { display: none; }
     .readout-source { font-size: .8125rem/1.7 var(--mono); }
     .readout-bar, .readout-controls, .readout-life { padding-inline: 14px; }
   }
@@ -250,6 +263,10 @@
 <body>
 <main class="reader">
   <header class="masthead">
+    <!-- The title and the bubble it speaks from are one section. The lookup is
+         another, held at the far end of the row, so the bubble has room to
+         grow towards it and the controls never move when it appears. -->
+    <div class="masthead-lead">
     <h1>Read paste</h1>
 
     <!-- The heading speaks this message, so it sits beside the heading in the
@@ -268,11 +285,13 @@
 
     </div>
 
+    </div>
+
     <form id="shortLookup" class="panel lookup" novalidate hidden>
       <input id="shortCode" type="text" class="input" placeholder="Short code" aria-label="Short code" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" maxlength="8">
       <button id="shortOpen" class="button" type="submit" disabled>Open</button>
     </form>
-    <p>Decrypt this paste in your browser.</p>
+    <p class="masthead-note">Decrypt this paste in your browser.</p>
   </header>
   <div id="unlock" class="unlock panel">
     <div id="unlockRow">
