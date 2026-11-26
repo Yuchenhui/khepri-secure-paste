@@ -480,43 +480,39 @@
   /* The arrow points up, at the button the code belongs to. It is drawn from
      the card's own colours, so it reads as part of the bubble. */
 
+  /* The arrow is the same one the message bubble uses: a square with two
+     edges, turned so its corner points at the thing that opened it. The
+     script says where along the edge to put it. */
+
   .qr::before {
 
-    content: ""; position: absolute; inset-block-end: 100%; inset-inline-start: var(--qr-arrow, 18px);
-
-    width: 11px; height: 11px; margin-block-end: -6px; margin-inline-start: -5.5px;
-
-    background: var(--paper); border-inline-start: 1px solid var(--control);
-
-    border-block-start: 1px solid var(--control); transform: rotate(45deg);
+    content: ""; position: absolute; width: 11px; height: 11px; background: var(--paper);
 
   }
 
-  /* Opened above the button, the arrow points down at it instead. */
-
-  .qr.above::before {
-
-    inset-block-end: auto; inset-block-start: 100%; margin-block-end: 0; margin-block-start: -6px;
-
-    border-inline-start: 0; border-block-start: 0;
-
-    border-inline-end: 1px solid var(--control); border-block-end: 1px solid var(--control);
-
-  }
-
-  /* Opened beside the button, the arrow points left at it. */
+  /* Beside the button: the arrow is on the left edge, pointing left at the
+     button, the way the message bubble points at its title. */
 
   .qr.beside::before {
 
-    inset-block-end: auto; inset-block-start: var(--qr-arrow, 50%); inset-inline-start: auto;
+    inset-inline-start: -8px; inset-inline-end: auto; inset-block-start: var(--qr-arrow, 50%);
 
-    inset-inline-end: 100%; margin-block-end: 0; margin-inline-end: -12px; margin-inline-start: 0;
+    border-inline-start: 1px solid var(--control); border-block-start: 1px solid var(--control);
 
-    margin-block-start: -5px;
+    transform: translateY(-50%) rotate(-45deg);
 
-    border-inline-start: 0; border-block-start: 0;
+  }
+
+  /* Above the button: the same arrow turned the other way, on the bottom
+     edge, pointing down at it. */
+
+  .qr.above::before {
+
+    inset-block-start: auto; inset-block-end: -8px; inset-inline-start: var(--qr-arrow, 50%);
 
     border-inline-end: 1px solid var(--control); border-block-end: 1px solid var(--control);
+
+    transform: translateX(-50%) rotate(45deg);
 
   }
 

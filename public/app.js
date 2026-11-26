@@ -532,9 +532,9 @@ function placeQr() {
   // Beside is preferred. Above is the fallback, and the two are never both:
   // an arrow that points at a button off to one side is worse than no arrow.
 
-  // The bubble sits a little away from the button, so the arrow has to cross
-  // that gap to reach it.
-  const gap = 12;
+  // The bubble sits one arrow's width away from the button, so the arrow
+  // reaches it exactly.
+  const gap = 8;
   const beside = mark.right + gap;
   const fitsBeside = beside + bubble.width <= window.innerWidth - margin;
 
