@@ -387,9 +387,9 @@ $('pw').focus();
 if (SHORT_LINK_BASE) {
   const form = $('shortLookup');
   const input = $('shortCode');
-  const open = $('shortOpen');
   form.hidden = false;
 
+  const open = $('shortOpen');
   // The field only ever holds letters and digits: anything else never makes it
   // in. maxlength owns the upper bound, so this only gates the lower one and
   // Open stays disabled until there are at least three characters. No native
@@ -407,7 +407,7 @@ if (SHORT_LINK_BASE) {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const code = input.value.trim();
-    if (open.disabled) return;
+    if (!/^[A-Za-z0-9]{3,8}$/.test(code)) return;
     // Ask the shortener first, so a code that does not resolve is explained on
     // this page instead of dumping the reader on a bare 404.
     input.disabled = true;
@@ -440,7 +440,6 @@ if (SHORT_LINK_BASE) {
       } finally {
         clearTimeout(timer);
         input.disabled = false;
-        open.disabled = input.value.length < 3;
         if (['Checking that code…', 'Still checking…'].includes($('readError').textContent)) {
           setReadError();
         }

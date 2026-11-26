@@ -1,437 +1,224 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="utf-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Read paste</title>
-
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-
 <style>
-
   :root {
-
     color-scheme: light;
-
     /* The same palette as the create page, so the two halves of the product
-
        read as one object. */
-
     --canvas: #f4f4f1;
-
     --paper: #fff;
-
     --ink: #1b2431;
-
     --muted: #5b6878;
-
     --line: #dfe3e8;
-
     --control: #8b98a7;
-
     --accent: #214fb8;
-
     --accent-hover: #1a419c;
-
     --accent-active: #16357e;
-
     --code-digit: #a23d09;
-
     --tint: #eef3fb;
-
     --editor: #1b2735;
-
     --editor-edge: #35485e;
-
     --editor-text: #f2f6fc;
-
     --editor-muted: #a7b6c9;
-
     --danger: #b3453f;
-
     --warning: #8a5a1c;
-
     --success: #35784a;
-
     --mono: ui-monospace, "Cascadia Mono", Menlo, "DejaVu Sans Mono", Consolas, monospace;
-
     --shadow-1: 0 1px 2px rgb(27 36 49 / 0.06), 0 0 0 0.5px rgb(27 36 49 / 0.04);
-
     --ease-out: cubic-bezier(.2, .8, .2, 1);
-
   }
-
   html { overflow-y: scroll; }
-
   @supports (scrollbar-gutter: stable) {
-
     html { overflow-y: auto; scrollbar-gutter: stable; }
-
   }
-
   *, *::before, *::after { box-sizing: border-box; }
-
   [hidden] { display: none !important; }
-
-  /* The message card floats over the top of the viewport. This padding is the
-     slot it lives in: always there, never changing, so the heading below never
-     moves when the card appears or goes. 60px is the card's own 43px plus the
-     16px gap above it, plus a little. */
-  body { margin: 0; padding-block-start: 60px; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-
-  main { width: min(calc(100% - 48px), 56rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
-
-  /* While the message card is up, the page keeps a slot for it: the card
-
-     never overlaps the heading and never crowds the panel under it. */
-
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { width: min(calc(100% - 48px), 60rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
   .masthead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 16px; margin-bottom: 32px; }
-
   h1 { margin: 0; font-size: clamp(2rem, 4.4vw, 2.75rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.1; }
-
   .masthead p { grid-column: 1 / -1; max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
-
   .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-1); }
-
   ::selection { background: var(--accent); color: var(--paper); }
-
   :where(button, input, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-
   a { color: var(--accent); text-underline-offset: .2em; }
-
   button, input, select, textarea { font: inherit; }
-
   input[type="checkbox"] { appearance: none; flex: none; width: 16px; height: 16px; margin: 0; border: 1px solid var(--control); border-radius: 4px; background: var(--paper); accent-color: var(--accent); cursor: pointer; }
-
   input[type="checkbox"]:checked { border-color: var(--accent); background: var(--accent) center / 12px 12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3 3 7-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
-
   @media (forced-colors: active) { input[type="checkbox"] { appearance: auto; } }
-
   :where(button, input, select, textarea, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
   a { color: var(--accent); text-underline-offset: .18em; }
-
   .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--accent); color: var(--paper); font-size: .875rem; font-weight: 550; text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 160ms var(--ease-out); }
-
   .button:hover:not([aria-busy="true"]):not(:disabled) { background: var(--accent-hover); }
-
   .button:active:not([aria-busy="true"]):not(:disabled) { background: var(--accent-active); transform: translateY(1px); }
-
   .button.secondary { border-color: var(--line); background: var(--paper); color: var(--ink); }
-
   .button.secondary:hover:not(:disabled) { border-color: var(--control); color: var(--accent); }
-
   .button.secondary:active:not(:disabled) { background: var(--canvas); transform: translateY(1px); }
-
   .button[aria-busy="true"] { opacity: .75; cursor: progress; }
-
   .bp-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
-
   @keyframes spin { to { transform: rotate(1turn); } }
-
   .field { display: grid; gap: 6px; min-width: 0; }
-
   .field > label { font-size: .875rem; font-weight: 650; }
-
   .optional { color: var(--muted); font-weight: 400; }
-
   .input { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
-
   .input:hover { border-color: var(--control); }
-
   .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(33 79 184 / 0.14); outline: none; }
-
   ::placeholder { color: var(--muted); opacity: 1; }
-
   .note { margin: 0; font-size: .875rem; color: var(--muted); }
-
   .note--warn { color: var(--warning); }
-
   .err { margin: 0; color: var(--danger); }
-
   @media (max-width: 40rem) {
-
     main { width: calc(100% - 32px); margin-top: 32px; }
-
     .masthead { margin-bottom: 22px; }
-
   }
-
   @media (prefers-reduced-motion: reduce) { .bp-spinner { animation: none; } }
 
-  .reader { max-width: 40rem; }
+  /* The reader fills the column like the create page's editor does: no cap of
+     its own, so the panel and its button span the whole measure. */
 
   .unlock { padding: 18px 22px 22px; }
+  /* The field takes the whole row and the button keeps its own width at the end:
+     a button stretched across a third of the page reads as a slab, not a
+     command. The text inside the field is centred, so what is typed sits in the
+     middle of a wide box instead of trailing off at the left. */
 
   #unlockRow { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+  #unlockRow .field { flex: 1 1 auto; }
+  #unlockRow .button { flex: 0 0 auto; min-width: 9rem; }
 
-  #unlockRow .field { flex: 1 1 14rem; }
-
+  #unlockRow .input { text-align: center; }
   .unlock .field > label { font-size: .8125rem; font-weight: 550; letter-spacing: .01em; }
-
   /* A short code is a handful of characters, so the row is a handful of
-
      pixels wide and sits beside the title, in the masthead's second column.
-
      The message is out of the flow: an error never grows the page. */
-
   .lookup { position: relative; display: flex; align-items: center; gap: 6px; margin-block-start: 8px; padding: 6px; border-radius: 10px; }
-
   .lookup .input { width: 13ch; min-width: 0; min-height: 36px; padding: 6px 10px; }
-
   .lookup .button { min-height: 36px; padding: 6px 12px; }
-
   /* Every message on the site is the same thing: a card floating at the top of
-
      the page. The lookup one is anchored to its own row, because it explains
-
      the field it sits next to. */
-
   /* One floating card for every message on the site: wide enough for the
-
      longest message on a single line, so the page never grows twice. */
-
   /* Hidden until there is a message. The paragraph holds two spans, so it is
-
      never :empty; the card asks whether either span carries text. */
-
-  /* The card floats at the top of the viewport and never moves the page: the
-     body always reserves exactly its height, so the heading sits where it sits
-     whether the card is up or not. It used to sit in the flow before <main>,
-     which pushed the whole page down the moment it appeared. */
-
-  .read-feedback { display: none; position: fixed; z-index: 10; inset-inline: 0; inset-block-start: 16px; align-items: center; gap: 12px; width: min(34rem, calc(100% - 32px)); margin-inline: auto; }
-
+  .read-feedback { display: none; position: fixed; inset-inline: 0; inset-block-start: max(16px, env(safe-area-inset-top)); margin-inline: auto; inline-size: min(34rem, calc(100% - 32px)); z-index: 10; align-items: center; gap: 12px; }
   .read-feedback:has(#readErrorTitle:not(:empty)), .read-feedback:has(#readErrorBody:not(:empty)) {
-
     display: flex; padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper);
-
     box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
-
   }
-
   /* A drawn alert mark, not a coloured dot: on a white card a plain dot reads
-
      as decoration, and an exclamation reads as the problem it is. */
-
   .read-feedback:has(#readErrorTitle:not(:empty))::before, .read-feedback:has(#readErrorBody:not(:empty))::before {
-
     content: ""; flex: none; width: 18px; height: 18px;
-
     background: var(--danger);
-
     clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-
   }
-
   /* Progress reads as a status, not a fault: no mark, no red. */
-
   .read-feedback:has(#readError[data-tone="neutral"])::before { display: none; }
-
   #readError[data-tone="neutral"] #readErrorTitle { color: var(--muted); font-weight: 550; }
-
   #readError { flex: 1; min-width: 0; margin: 0; font-size: .875rem; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
   #readErrorTitle { font-weight: 650; }
-
   #readErrorBody { color: var(--muted); }
-
   /* The space between the title and the body is generated, so neither span
-
      needs a text node that would defeat :empty. */
-
   #readErrorTitle:not(:empty)::after { content: " "; }
-
   @media (prefers-reduced-motion: no-preference) {
-
     .read-feedback:has(#readErrorTitle:not(:empty)), .read-feedback:has(#readErrorBody:not(:empty)) { animation: feedback-in 160ms ease-out; }
-
     @keyframes feedback-in { from { opacity: 0; transform: translateY(-6px); } }
-
   }
-
   .dismiss-error { display: grid; place-items: center; flex: none; width: 24px; height: 24px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
-
   .dismiss-error:hover { background: var(--tint); color: var(--ink); }
-
   .dismiss-error svg { pointer-events: none; }
-
   #body:not(:empty) { margin-top: 28px; }
-
   .unlock-error { padding: 22px 24px 24px; }
-
   .unlock-error h2 { margin: 0 0 8px; font-size: 1.125rem; font-weight: 650; letter-spacing: -.01em; }
-
   .unlock-error p { margin: 0 0 18px; }
-
   .unlock-error-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-
   .unlock-error-actions .button { min-height: 40px; }
-
   .page-footer { display: flex; justify-content: flex-end; margin-top: 12px; padding-inline: clamp(12px, 2vw, 20px); }
-
   .source-link { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; color: var(--muted); }
-
   .source-link:hover, .source-link:focus-visible { color: var(--ink); background: #0000000a; }
-
   .source-link svg { width: 20px; height: 20px; fill: currentColor; }
-
   .readout { overflow: hidden; }
-
   .readout-life { padding: 11px 16px; font-size: .8125rem; }
-
   .readout-wrap { display: grid; }
-
   .readout-controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
-
   .readout-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: .8125rem; cursor: pointer; color: var(--ink); transition: color 160ms var(--ease-out); }
-
   .readout-toggle:hover { color: var(--accent); }
-
   .readout-controls.text-controls { justify-content: flex-end; padding-block: 9px; padding-inline: 16px; border-top: 0; border-bottom: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-text); }
-
   .text-controls .readout-toggle { color: inherit; }
-
   .text-controls .readout-toggle input:not(:checked) { background: transparent; border-color: var(--editor-muted); }
-
   .text-controls :focus-visible { outline-color: var(--editor-muted); }
-
   .readout-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 16px; }
-
   .readout-bar h2 { margin: 0; font-size: .8125rem; font-weight: 550; }
-
   .readout-source { display: flex; max-height: 65vh; overflow: auto; background: var(--editor); color: var(--editor-text); color-scheme: dark; font: .875rem/1.75 var(--mono); }
-
   .readout-source pre { margin: 0; padding: 16px 18px; font: inherit; white-space: pre; tab-size: 4; }
-
   .readout-source.wrap pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
-
   .readout-source.wrap .line-numbers { position: static; }
-
   .readout-source .line-numbers { position: sticky; left: 0; flex: none; padding-inline: 12px; border-right: 1px solid var(--editor-edge); background: var(--editor); color: var(--editor-muted); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
-
   /* The file readout is one panel: the name and its details sit directly on
-
      it, with the action row underneath. */
-
   .readout[data-readout="file"] .file-name { margin: 0; padding: 18px 20px 0; }
-
   .readout[data-readout="file"] > .note { margin: 0; padding: 2px 20px 18px; font-size: .8125rem; }
-
   /* The burn confirmation is one panel, not a card inside a card: the
-
      sentence, then the single action, both at full width. */
-
   .burn-confirm { display: grid; gap: 14px; padding: 22px 24px 24px; }
-
   .burn-confirm p { margin: 0; font-size: .875rem; line-height: 1.5; }
-
   .burn-confirm .button { width: 100%; min-height: 44px; }
-
   /* The password field moved here to keep its value; it must stay invisible. */
-
   .burn-confirm #pw { display: none; }
-
   .file-name { font: 550 1rem/1.45 var(--mono); overflow-wrap: anywhere; }
-
   @media (max-width: 40rem) {
-
     main { width: calc(100% - 32px); margin-top: 32px; }
-
     .masthead { margin-bottom: 24px; }
-
     .unlock { padding: 14px 16px 16px; }
-
     #go { margin-inline-start: auto; }
-
     /* The lookup drops under the title rather than squeezing it. */
-
     .masthead { grid-template-columns: minmax(0, 1fr); }
-
     .lookup { justify-self: start; margin-block-start: 12px; }
-
     .readout-source { font-size: .8125rem/1.7 var(--mono); }
-
     .readout-bar, .readout-controls, .readout-life { padding-inline: 14px; }
-
   }
-
 </style>
-
 </head>
-
 <body>
-
-  <div class="read-feedback">
-
-    <p id="readError" class="note err" role="alert"><span id="readErrorTitle"></span><span id="readErrorBody"></span></p>
-
-    <button id="dismissReadError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
-
-      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-
-    </button>
-
-  </div>
 <main class="reader">
-
   <header class="masthead">
-
     <h1>Read paste</h1>
-
     <form id="shortLookup" class="panel lookup" novalidate hidden>
-
       <input id="shortCode" type="text" class="input" placeholder="Short code" aria-label="Short code" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" maxlength="8">
-
       <button id="shortOpen" class="button" type="submit" disabled>Open</button>
-
     </form>
-
     <p>Decrypt this paste in your browser.</p>
-
   </header>
-
   <div id="unlock" class="unlock panel">
-
     <div id="unlockRow">
-
       <div class="field">
-
         <label for="pw">Password <span class="optional">(if set)</span></label>
-
         <input id="pw" type="password" class="input" placeholder="Leave blank if none was set" autocomplete="off">
-
       </div>
-
       <button id="go" class="button" type="button">Decrypt</button>
-
     </div>
-
   </div>
-
-
+  <div class="read-feedback">
+    <p id="readError" class="note err" role="alert"><span id="readErrorTitle"></span><span id="readErrorBody"></span></p>
+    <button id="dismissReadError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
   <div id="body" aria-live="polite"></div>
-
   <footer class="page-footer note">
-
     <a class="source-link" href="https://github.com/Yuchenhui/khepri-secure-paste" target="_blank" rel="noreferrer" aria-label="Source on GitHub" title="Source on GitHub">
-
       <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-
     </a>
-
   </footer>
-
 </main>
 
 <script src="/view.js"></script>
-
 </body>
-
 </html>
-

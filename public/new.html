@@ -84,23 +84,56 @@
 
   [hidden] { display: none !important; }
 
-  /* The message card floats over the top of the viewport. This padding is the
-     slot it lives in: always there, never changing, so the heading below never
-     moves when the card appears or goes. 60px is the card's own 43px plus the
-     16px gap above it, plus a little. */
-  body { margin: 0; padding-block-start: 60px; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* No reserved space for the message card: it floats over the top of the
+     viewport and may cover the heading for a moment. That is the better
+     trade — the alternative reserved 60px on every page load, which on a short
+     screen pushed the editor and the result below the fold. */
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
 
-  main { width: min(calc(100% - 48px), 60rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
+  /* The top margin is deliberately small: on a short viewport every pixel here
+     pushes the editor and the result below the fold. The masthead's own spacing
+     carries the separation instead. */
+  main { width: min(calc(100% - 48px), 60rem); margin: clamp(16px, 3vh, 36px) auto 40px; }
 
-  /* While the message card is up, the page keeps a slot for it: the card
+  /* Two columns: the title takes only what it needs, and the message sits in the
+     space immediately after it with the arrow pointing back. The first column
+     must not be 1fr — that pushes the bubble to the far edge of the page and
+     leaves a desert between the title and what it is supposed to be saying. */
 
-     never overlaps the heading and never crowds the panel under it. */
-
-  .masthead { margin-bottom: 32px; }
+  .masthead { display: grid; grid-template-columns: auto auto; align-items: center; justify-content: start; column-gap: 18px; margin-bottom: 32px; }
 
   h1 { margin: 0; font-size: clamp(2rem, 4.4vw, 2.75rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.1; }
 
-  .masthead p { max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
+  .masthead p { grid-column: 1 / -1; max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
+
+  /* The heading's speech bubble. Left-aligned in its column so it reads as
+     belonging to the title, with an arrow pointing back at it. */
+
+  .create-feedback { display: none; }
+
+  .create-feedback:has(#createError:not(:empty)) {
+
+    position: relative; display: flex; align-items: center; gap: 10px;
+
+    max-width: min(26rem, calc(100vw - 8rem)); padding: 10px 12px;
+
+    border: 1px solid var(--line); border-radius: 10px; background: var(--paper);
+
+    box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
+
+  }
+
+  /* The arrow points left, at the title that is speaking. */
+
+  .create-feedback:has(#createError:not(:empty))::before {
+
+    content: ""; position: absolute; inset-inline-start: -6px; inset-block-start: 50%;
+
+    width: 11px; height: 11px; background: var(--paper); border-inline-start: 1px solid var(--line);
+
+    border-block-start: 1px solid var(--line); transform: translateY(-50%) rotate(-45deg);
+
+  }
 
   .panel { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-1); }
 
@@ -194,13 +227,29 @@
 
     .masthead { margin-bottom: 22px; }
 
+    /* Too narrow to hold the title and its bubble side by side: the bubble drops
+       below the title and spans the column, and its arrow goes quiet because
+       there is no title edge to point at any more. */
+
+    .masthead { grid-template-columns: minmax(0, 1fr); }
+
+    .create-feedback { grid-row: 2; max-width: none; margin-block-start: 12px; }
+
+    .create-feedback:has(#createError:not(:empty))::before { display: none; }
+
   }
 
   @media (prefers-reduced-motion: reduce) { .bp-spinner { animation: none; } }
 
-  .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, .48fr); align-items: stretch; }
+  /* The workbench is bounded by the viewport, not by its content: without this
+     the editor column is as tall as whatever was pasted, which on a short screen
+     pushes the result card off screen. The editor keeps its minimum so an empty
+     form still looks like a form, and the textarea stays manually resizable. */
+  .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, .48fr); align-items: stretch; height: clamp(20rem, calc(100vh - 15rem), 40rem); }
 
-  .editor { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 18px 22px 22px; border-radius: 13px 0 0 13px; background: var(--editor); color: var(--editor-text); }
+  .editor { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; min-height: 0; padding: 18px 22px 22px; border-radius: 13px 0 0 13px; background: var(--editor); color: var(--editor-text); }
+
+  .editor-source { display: grid; grid-template-columns: calc(22px + var(--line-digits, 1) * 1ch) minmax(0, 1fr); min-height: 0; border: 1px solid var(--editor-edge); border-radius: 10px; background: #ffffff05; font: .875rem/1.7 var(--mono); }
 
   .editor-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 0 14px; }
 
@@ -227,8 +276,6 @@
   .size-state.over { color: var(--warning); }
 
   .size-hint { margin: 2px 0 0; color: var(--editor-muted); font-size: .75rem; line-height: 1.5; }
-
-  .editor-source { display: grid; grid-template-columns: calc(22px + var(--line-digits, 1) * 1ch) minmax(0, 1fr); border: 1px solid var(--editor-edge); border-radius: 10px; background: #ffffff05; font: .875rem/1.7 var(--mono); }
 
   .line-numbers { position: relative; overflow: hidden; border-right: 1px solid var(--editor-edge); color: var(--editor-muted); text-align: right; user-select: none; }
 
@@ -262,30 +309,13 @@
 
   /* The same floating card as the read page. */
 
-  /* Hidden until there is a message, like the read page's card. */
-
-  /* The card floats at the top of the viewport and never moves the page: the
-     body always reserves exactly its height, so the heading sits where it sits
-     whether the card is up or not. It used to sit in the flow before <main>,
-     which pushed the whole page down the moment it appeared. */
-
-  .create-feedback { display: none; position: fixed; z-index: 10; inset-inline: 0; inset-block-start: 16px; align-items: center; gap: 12px; width: min(34rem, calc(100% - 32px)); margin-inline: auto; }
-
-  .create-feedback:has(#createError:not(:empty)) {
-
-    display: flex; padding: 11px 14px; border: 0; border-radius: 10px; background: var(--paper);
-
-    box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
-
-  }
-
   /* A drawn alert mark, not a coloured dot: on a white card a plain dot reads
 
      as decoration, and an exclamation reads as the problem it is. */
 
-  .create-feedback:has(#createError:not(:empty))::before {
+  .create-feedback:has(#createError:not(:empty)) #createError::before {
 
-    content: ""; flex: none; width: 18px; height: 18px;
+    content: ""; flex: none; width: 16px; height: 16px;
 
     background: var(--danger);
 
@@ -293,15 +323,31 @@
 
   }
 
-  #createError { flex: 1; min-width: 0; margin: 0; font-size: .875rem; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  #createError:empty ~ * { display: none; }
+  #createError { flex: 1; min-width: 0; margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--danger); }
 
   @media (prefers-reduced-motion: no-preference) {
 
-    .create-feedback:has(#createError:not(:empty)) { animation: feedback-in 160ms ease-out; }
+    /* Unfolds from the title it hangs off, so the bubble appears to be spoken. */
 
-    @keyframes feedback-in { from { opacity: 0; transform: translateY(-6px); } }
+    .create-feedback:has(#createError:not(:empty)) { animation: bubble-speak 180ms cubic-bezier(.2, .9, .3, 1); transform-origin: left center; }
+
+    @keyframes bubble-speak { from { opacity: 0; transform: scale(.96) translateX(-6px); } }
+
+    /* The title flinches when it has something to say — one short shake, not a
+       loop. A loop reads as a glitch; a single flinch reads as a person. One
+       :has() on the masthead is enough, and it has to be one: :has() cannot be
+       nested, and the nested form is dropped as invalid. */
+
+    .masthead:has(#createError:not(:empty)) h1 { animation: title-flinch 320ms cubic-bezier(.36, .07, .19, .97); }
+
+    @keyframes title-flinch {
+      0% { transform: translateX(0); }
+      18% { transform: translateX(-3px); }
+      38% { transform: translateX(3px); }
+      58% { transform: translateX(-2px); }
+      78% { transform: translateX(2px); }
+      100% { transform: translateX(0); }
+    }
 
   }
 
@@ -449,22 +495,27 @@
 
 <body>
 
-  <div class="create-feedback">
-
-    <p id="createError" class="note err" role="alert"></p>
-
-    <button id="dismissCreateError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
-
-      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-
-    </button>
-
-  </div>
 <main>
 
   <header class="masthead">
 
     <h1>New paste</h1>
+
+    <!-- The heading speaks this message, so it sits beside the heading in the
+         masthead's second column: same baseline, its own arrow pointing back at
+         the title. It is ordinary flow, so it takes no space when silent and
+         pushes nothing when it speaks. -->
+    <div class="create-feedback">
+
+      <p id="createError" class="note err" role="alert"></p>
+
+      <button id="dismissCreateError" class="dismiss-error" type="button" aria-label="Dismiss" title="Dismiss">
+
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+
+      </button>
+
+    </div>
 
     <p>Share text, code, or a small file using an encrypted link.</p>
 
@@ -511,6 +562,12 @@
     <section class="settings" aria-labelledby="settingsTitle">
 
       <h2 id="settingsTitle">Share settings</h2>
+
+      <!-- The message lives here, at the top of the panel that holds the button it
+           is about. A banner across the top of the page covered the heading and
+           wasted the whole right column; in the flow here it costs nothing and
+           sits where the reader is already looking. -->
+
 
       <div class="field">
 
