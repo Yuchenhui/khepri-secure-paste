@@ -460,10 +460,14 @@ function loadQrEncoder() {
   return qrLoading;
 }
 
+// The code is drawn in the page's own ink, and its modules are rounded: the
+// finder squares are part of the code and cannot go, but a grid of hard blocks
+// is not what the rest of the page looks like. The quiet zone stays four
+// modules wide, because that is what a reader needs to find the code.
 function drawQr(canvas, qr) {
   const count = qr.getModuleCount();
   const quiet = 4;
-  const room = Math.max(160, Math.min(260, window.innerWidth - 96));
+  const room = Math.max(160, Math.min(240, window.innerWidth - 96));
   const scale = Math.max(1, Math.floor(room / (count + quiet * 2)));
   const size = (count + quiet * 2) * scale;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -473,14 +477,19 @@ function drawQr(canvas, qr) {
   canvas.style.height = size + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = '#000000';
+
+  const radius = Math.max(1, scale * 0.34);
+  ctx.fillStyle = '#1b2431';
   for (let row = 0; row < count; row += 1) {
     for (let col = 0; col < count; col += 1) {
-      if (qr.isDark(row, col)) {
-        ctx.fillRect((col + quiet) * scale, (row + quiet) * scale, scale, scale);
-      }
+      if (!qr.isDark(row, col)) continue;
+      const x = (col + quiet) * scale;
+      const y = (row + quiet) * scale;
+      ctx.beginPath();
+      // roundRect is recent; the square is the fallback and reads the same.
+      if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, scale, scale, radius);
+      else ctx.rect(x, y, scale, scale);
+      ctx.fill();
     }
   }
 }
@@ -532,8 +541,10 @@ function placeQr() {
   // Beside is preferred. Above is the fallback, and the two are never both:
   // an arrow that points at a button off to one side is worse than no arrow.
 
-  // The bubble sits one arrow's width away from the button, so the arrow
-  // reaches it exactly.
+  // The bubble opens beside the button, in the empty right-hand half of the
+  // card. The short code is to the left of the button and the notes are below
+  // it, so the bubble keeps its top with the button's top and covers the
+  // notes rather than the code: the code is what the reader came for.
   const gap = 8;
   const beside = mark.right + gap;
   const fitsBeside = beside + bubble.width <= window.innerWidth - margin;
@@ -541,20 +552,13 @@ function placeQr() {
   let top;
   let left;
   if (fitsBeside) {
-    // Beside the button: the bubble sits next to it, and its arrow is on the
-    // near edge pointing at the button.
-    top = Math.min(Math.max(mark.top + mark.height / 2 - bubble.height / 2, margin),
-      window.innerHeight - bubble.height - margin);
+    top = Math.min(Math.max(mark.top, margin), window.innerHeight - bubble.height - margin);
     left = beside;
   } else {
-    const roomAbove = mark.top;
-    const roomBelow = window.innerHeight - mark.bottom;
-    const above = roomAbove >= roomBelow;
-    top = above
-      ? Math.max(margin, mark.top - bubble.height - gap)
-      : Math.min(mark.bottom + gap, window.innerHeight - bubble.height - margin);
-    left = Math.min(Math.max(mark.right - bubble.width, margin),
-      window.innerWidth - bubble.width - margin);
+    // No room to the right: open above the button instead, and let the arrow
+    // point down at it.
+    top = Math.max(margin, mark.top - bubble.height - gap);
+    left = Math.min(Math.max(mark.left, margin), window.innerWidth - bubble.width - margin);
   }
 
   box.style.setProperty('--qr-top', Math.round(top) + 'px');
@@ -563,12 +567,11 @@ function placeQr() {
   // The arrow points at the button, so its place along the edge depends on
   // which edge it is on: beside the button it slides up and down, above the
   // button it slides left and right.
-  const above = !fitsBeside && top < mark.top;
-  const arrow = above
-    ? mark.left + mark.width / 2 - left
-    : mark.top + mark.height / 2 - top;
+  const arrow = fitsBeside
+    ? mark.top + mark.height / 2 - top
+    : mark.left + mark.width / 2 - left;
   box.style.setProperty('--qr-arrow', Math.round(arrow) + 'px');
-  box.classList.toggle('above', above);
+  box.classList.toggle('above', !fitsBeside);
   box.classList.toggle('beside', fitsBeside);
 }
 

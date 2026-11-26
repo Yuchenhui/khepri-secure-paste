@@ -465,15 +465,14 @@
 
     display: grid; justify-items: start; gap: 8px; width: max-content; max-width: min(20rem, calc(100vw - 32px));
 
-    padding: 12px; border: 1px solid var(--control); border-radius: 12px;
+    padding: 8px; border: 1px solid var(--line); border-radius: 10px;
 
     background: var(--paper);
 
-    /* One edge, not two: the border says where the bubble ends, and the short
-       shadow under it says it floats above the page. A wide soft shadow as
-       well would give two answers to the same question. */
+    /* The same edge and the same lift as the message bubble: a hairline in the
+       page's own line colour, and one soft shadow under it. */
 
-    box-shadow: 0 4px 10px -6px rgb(27 36 49 / 0.28);
+    box-shadow: 0 1px 2px rgb(27 36 49 / 0.1), 0 10px 24px -10px rgb(27 36 49 / 0.16);
 
   }
 
@@ -497,7 +496,7 @@
 
     inset-inline-start: -8px; inset-inline-end: auto; inset-block-start: var(--qr-arrow, 50%);
 
-    border-inline-start: 1px solid var(--control); border-block-start: 1px solid var(--control);
+    border-inline-start: 1px solid var(--line); border-block-start: 1px solid var(--line);
 
     transform: translateY(-50%) rotate(-45deg);
 
@@ -510,16 +509,17 @@
 
     inset-block-start: auto; inset-block-end: -8px; inset-inline-start: var(--qr-arrow, 50%);
 
-    border-inline-end: 1px solid var(--control); border-block-end: 1px solid var(--control);
+    border-inline-end: 1px solid var(--line); border-block-end: 1px solid var(--line);
 
     transform: translateX(-50%) rotate(45deg);
 
   }
 
-  .qr canvas { display: block; border-radius: 6px; background: #ffffff; }
+  /* The code is read with a phone, so it stays square and unbroken. It carries
+     no edge of its own: the ink on the paper is the code, and the paper is
+     the bubble. */
 
-  /* The code is read with a phone, so it is the one thing in the bubble that
-     gets to be square and unbroken. */
+  .qr canvas { display: block; background: #ffffff; }
 
   /* The close mark sits in the corner of the bubble, on the paper beside the
      code rather than on top of it. */
