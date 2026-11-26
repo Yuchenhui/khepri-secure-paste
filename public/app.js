@@ -76,10 +76,13 @@ function updateWrap() {
 }
 
 const settingsKey = 'khepri:create-settings';
-// The lifetime is deliberately not remembered: a leftover value from an
-// earlier visit would silently override the default, and a stale paste that
-// lives longer than intended is the worse failure.
-const settingsControls = ['reads', 'pin', 'len', 'autoWrap'].map($);
+// Everything the form offers except the password and the content itself: the
+// lifetime, the read limit, the IP pin, the code length and the wrap mode all
+// survive a reload. The lifetime used to be left out on the theory that a
+// leftover value would make a paste live longer than intended, but that risk is
+// the same one the read limit and the pin already carry, the dropdown always
+// shows the current value, and the server rejects a ttl past MAX_TTL_S anyway.
+const settingsControls = ['ttl', 'reads', 'pin', 'len', 'autoWrap'].map($);
 
 try {
   const saved = JSON.parse(localStorage.getItem(settingsKey));
