@@ -293,8 +293,13 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       console.error('short link ' + code + ' could not be decrypted');
       return fail(req, res, 404, 'unknown code');
     }
+    // The code travels on, so the reader can tell which short link brought
+    // them here. It goes in the fragment, after the key, because the fragment
+    // never reaches the server: the paste URL stays as secret as it was.
+    // The key is base64url, which has no dot in it, so the split is clean.
+    const landing = target.replace(/#([^#]*)$/, '#$1.' + code);
     // Following a redirect never consumes a paste or its short link.
-    return send(res, 302, '', { Location: target });
+    return send(res, 302, '', { Location: landing });
   }
   return fail(req, res, 404, 'not found');
 });

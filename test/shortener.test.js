@@ -108,7 +108,25 @@ describe('shortener', () => {
     const code = link.slice(link.lastIndexOf('/') + 1);
     const redirect = await fetch(`${server.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.9.0.2' } });
     assert.equal(redirect.status, 302);
-    assert.equal(redirect.headers.get('location'), target);
+    // The code rides along in the fragment, after the key, so the reader can
+    // see which short link brought them here. The fragment never reaches the
+    // server, so the paste URL keeps its secrets.
+    const location = redirect.headers.get('location');
+    const [beforeHash, afterHash] = location.split('#');
+    assert.equal(beforeHash, target.split('#')[0]);
+    const [key, carried] = afterHash.split('.');
+    assert.equal(key, target.split('#')[1]);
+    assert.equal(carried, code);
+  });
+
+  test('the code is carried in the fragment, never in the query', async () => {
+    const target = pasteUrl();
+    const r = await shorten(server, { url: target });
+    const code = (await r.text()).trim().split('/').pop();
+    const redirect = await fetch(`${server.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.9.0.3' } });
+    const location = redirect.headers.get('location');
+    assert.equal(location.split('#')[0], target.split('#')[0], 'the query still holds only the id');
+    assert.ok(location.includes('#'), 'the code travels in the fragment');
   });
 
   test('the requested length is honoured across the whole range', async () => {
@@ -259,7 +277,10 @@ describe('shortener', () => {
 
       const redirect = await fetch(`${server.base}/${code}`, { redirect: 'manual', headers: { 'x-forwarded-for': '10.32.0.1' } });
       assert.equal(redirect.status, 302);
-      assert.equal(redirect.headers.get('location'), target);
+      // The redirect names the paste, with the code added after the key.
+      const location = redirect.headers.get('location');
+      assert.equal(location.split('#')[0], target.split('#')[0]);
+      assert.equal(location.split('#')[1].split('.')[0], target.split('#')[1]);
     } finally {
       await server.stop();
       fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

@@ -3,7 +3,17 @@
 // The paste id is in the query string (sent to the server).
 // The key is in the fragment (never sent to the server).
 const id = location.search.slice(1);
+
+// A short link adds its code after the key, so the reader can see which code
+// brought them here. The key is base64url and has no dot in it, so the two
+// parts are told apart by the first dot. A link without a code has none.
 const frag = location.hash.slice(1);
+const dot = frag.indexOf('.');
+// Named apart from the code the lookup box holds: this one says where the
+// reader came from, that one says where they want to go. The key is called
+// linkKey because the derived key below already owns that name.
+const linkKey = dot === -1 ? frag : frag.slice(0, dot);
+const fromCode = dot === -1 ? '' : frag.slice(dot + 1);
 const FILE_MARKER = 'KHEPRI-FILE 1';
 const SHORT_LINK_BASE = '__READER_SHORTENER__';
 
@@ -225,7 +235,7 @@ function activeButton() {
 
 async function decrypt() {
   setReadError();
-  if (!/^[0-9a-f]{16}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(frag)) {
+  if (!/^[0-9a-f]{16}$/.test(id) || !/^[A-Za-z0-9_-]{43}$/.test(linkKey)) {
     setReadError('Malformed link', 'The id or the key is missing.');
     return;
   }
@@ -258,7 +268,7 @@ async function decrypt() {
 
     const enc = new TextEncoder();
     const passwordBytes = enc.encode($('pw').value);
-    const keyBytes = b64uToBytes(frag);
+    const keyBytes = b64uToBytes(linkKey);
     const salt = b64uToBytes(d.salt);
     // Same construction as the sender: random bytes ++ password.
     const material = new Uint8Array(keyBytes.length + passwordBytes.length);
@@ -404,6 +414,13 @@ function showReadout(readout, focusTarget) {
 $('dismissReadError').onclick = () => { setReadError(); $('pw').focus({ preventScroll: true }); };
 $('go').onclick = decrypt;
 $('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') decrypt(); });
+// Say which short link brought the reader here, when one did. A link that
+// carries no code says nothing: the reader came from a long link.
+if (fromCode && /^[A-Za-z0-9]{3,8}$/.test(fromCode)) {
+  $('arrivalCode').textContent = fromCode;
+  $('arrival').hidden = false;
+}
+
 $('pw').focus();
 
 if (SHORT_LINK_BASE) {
