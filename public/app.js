@@ -510,7 +510,6 @@ function placeQr() {
   const button = $('showQr');
   const mark = button.getBoundingClientRect();
   const bubble = box.getBoundingClientRect();
-  const gap = 10;
   const margin = 12;
 
   // On a narrow screen the bubble is a panel at the foot of the screen, and
@@ -533,12 +532,17 @@ function placeQr() {
   // Beside is preferred. Above is the fallback, and the two are never both:
   // an arrow that points at a button off to one side is worse than no arrow.
 
-  const beside = mark.right + 12;
+  // The bubble sits a little away from the button, so the arrow has to cross
+  // that gap to reach it.
+  const gap = 12;
+  const beside = mark.right + gap;
   const fitsBeside = beside + bubble.width <= window.innerWidth - margin;
 
   let top;
   let left;
   if (fitsBeside) {
+    // Beside the button: the bubble sits next to it, and its arrow is on the
+    // near edge pointing at the button.
     top = Math.min(Math.max(mark.top + mark.height / 2 - bubble.height / 2, margin),
       window.innerHeight - bubble.height - margin);
     left = beside;
@@ -555,9 +559,16 @@ function placeQr() {
 
   box.style.setProperty('--qr-top', Math.round(top) + 'px');
   box.style.setProperty('--qr-left', Math.round(left) + 'px');
-  // The arrow sits over the button, wherever the bubble ended up.
-  box.style.setProperty('--qr-arrow', Math.round(mark.left + mark.width / 2 - left) + 'px');
-  box.classList.toggle('above', !fitsBeside && top < mark.top);
+
+  // The arrow points at the button, so its place along the edge depends on
+  // which edge it is on: beside the button it slides up and down, above the
+  // button it slides left and right.
+  const above = !fitsBeside && top < mark.top;
+  const arrow = above
+    ? mark.left + mark.width / 2 - left
+    : mark.top + mark.height / 2 - top;
+  box.style.setProperty('--qr-arrow', Math.round(arrow) + 'px');
+  box.classList.toggle('above', above);
   box.classList.toggle('beside', fitsBeside);
 }
 
