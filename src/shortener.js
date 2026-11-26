@@ -1,7 +1,7 @@
 'use strict';
 
 const http = require('node:http');
-const { randomInt, randomBytes, createCipheriv, createDecipheriv } = require('node:crypto');
+const { randomInt, randomBytes, createCipheriv, createDecipheriv, timingSafeEqual } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
@@ -20,6 +20,11 @@ const rateOk = createRateLimit(120);
 
 const pasteOrigin = configuredHttpBase(process.env.ALLOWED_ORIGIN);
 const publicBase = configuredHttpBase(process.env.PUBLIC_URL, true);
+// The core tells the shortener when a paste is gone. That call must not be
+// something anyone on the internet can make: the secret is shared by the two
+// services and never leaves the host.
+const INTERNAL_KEY = process.env.SHORTENER_INTERNAL_KEY || '';
+const PASTE_ID = /^[0-9a-f]{16}$/;
 
 // Same treatment as the core: a browser that lands here gets a page, an API
 // client gets the plain reason.
@@ -132,7 +137,8 @@ db.exec(`
     owner TEXT NOT NULL,
     expires INTEGER NOT NULL,
     iv TEXT NOT NULL DEFAULT '',
-    tag TEXT NOT NULL DEFAULT ''
+    tag TEXT NOT NULL DEFAULT '',
+    paste_id TEXT NOT NULL DEFAULT ''
   );
   CREATE INDEX IF NOT EXISTS links_expires ON links(expires);
   CREATE INDEX IF NOT EXISTS links_owner ON links(owner);
@@ -140,6 +146,13 @@ db.exec(`
 const columns = db.prepare('PRAGMA table_info(links)').all().map((c) => c.name);
 if (!columns.includes('iv')) db.exec("ALTER TABLE links ADD COLUMN iv TEXT NOT NULL DEFAULT ''");
 if (!columns.includes('tag')) db.exec("ALTER TABLE links ADD COLUMN tag TEXT NOT NULL DEFAULT ''");
+// The paste id is not a secret: it is in the target URL, and the key that
+// matters stays encrypted in the sealed target. Keeping it in its own column
+// is what lets a link be dropped when its paste is gone.
+if (!columns.includes('paste_id')) db.exec("ALTER TABLE links ADD COLUMN paste_id TEXT NOT NULL DEFAULT ''");
+// The index comes after the column: on a database created before it existed,
+// the column has to be added first.
+db.exec('CREATE INDEX IF NOT EXISTS links_paste ON links(paste_id)');
 // Rows written before the database was encrypted cannot be read back, so they
 // are dropped rather than left to fail every lookup. Deleting a row does not
 // erase its bytes: the file is rebuilt and the write-ahead log truncated, or
@@ -157,12 +170,16 @@ try { fs.chmodSync(DB_PATH, 0o600); } catch { /* best effort */ }
 
 const qGet = db.prepare('SELECT target, iv, tag, expires FROM links WHERE code = ?');
 const qHas = db.prepare('SELECT 1 AS hit FROM links WHERE code = ?');
-const qInsert = db.prepare('INSERT INTO links (code, target, owner, expires, iv, tag) VALUES (?, ?, ?, ?, ?, ?)');
+const qInsert = db.prepare('INSERT INTO links (code, target, owner, expires, iv, tag, paste_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
 const qCount = db.prepare('SELECT count(*) AS c FROM links WHERE expires > ?');
 const qOwnerCount = db.prepare('SELECT count(*) AS c FROM links WHERE owner = ? AND expires > ?');
 const qDelete = db.prepare('DELETE FROM links WHERE code = ?');
+const qDeleteByPaste = db.prepare('DELETE FROM links WHERE paste_id = ?');
 const qDeleteExpired = db.prepare('DELETE FROM links WHERE expires <= ?');
 
+// The paste id and the key are both in the URL: the id says which paste this
+// link points at, the key says how to open it. The id travels in its own
+// column, in the clear, so the link can be dropped when that paste is gone.
 function pasteTarget(value) {
   if (typeof value !== 'string') return null;
   let target;
@@ -170,7 +187,7 @@ function pasteTarget(value) {
   catch { return null; }
   if (target.origin !== pasteOrigin || target.username || target.password || target.pathname !== '/' ||
       !/^\?[0-9a-f]{16}$/.test(target.search) || !/^#[A-Za-z0-9_-]{43}$/.test(target.hash)) return null;
-  return target.href;
+  return { href: target.href, pasteId: target.search.slice(1) };
 }
 
 function newCode(length) {
@@ -188,6 +205,31 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
   catch { return fail(req, res, 400, 'bad URL'); }
   const { pathname } = url;
   if (req.method === 'GET' && pathname === '/health') return send(res, 200, 'ok');
+
+  // The core drops a link when its paste is gone. The shared secret is the
+  // gate: it exists only on this host, and nginx refuses this path from the
+  // outside, so a request that arrives here with the right key is the core.
+  // It sits before the address check: this call comes from the core over the
+  // loopback and carries no client address of its own.
+  if (pathname.startsWith('/internal/paste/')) {
+    if (!INTERNAL_KEY) return fail(req, res, 404, 'not found');
+    const key = req.headers['x-internal-key'];
+    // timingSafeEqual throws on a length mismatch, so the lengths are compared
+    // first: a caller that guesses a shorter key must not crash the service.
+    if (typeof key !== 'string' || key.length !== INTERNAL_KEY.length ||
+        !timingSafeEqual(Buffer.from(key), Buffer.from(INTERNAL_KEY))) {
+      return fail(req, res, 403, 'forbidden');
+    }
+    // Belt and braces: even with the key, only this host may ask.
+    if (req.socket.remoteAddress !== '127.0.0.1' && req.socket.remoteAddress !== '::1' && req.socket.remoteAddress !== '::ffff:127.0.0.1') {
+      return fail(req, res, 403, 'forbidden');
+    }
+    if (req.method !== 'DELETE') return fail(req, res, 405, 'method not allowed');
+    const pasteId = pathname.slice('/internal/paste/'.length);
+    if (!PASTE_ID.test(pasteId)) return fail(req, res, 400, 'bad id');
+    const removed = qDeleteByPaste.run(pasteId).changes;
+    return send(res, 200, { removed });
+  }
 
   const ip = clientIp(req);
   if (!ip) return fail(req, res, 400, 'invalid client address');
@@ -232,8 +274,8 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     if (qCount.get(Date.now()).c >= MAX_LINKS) return fail(req, res, 503, 'short link storage full');
     const code = newCode(length);
     if (!code) return fail(req, res, 503, 'could not allocate a short code');
-    const sealed = sealTarget(target);
-    qInsert.run(code, sealed.target, ip, Date.now() + TTL_MS, sealed.iv, sealed.tag);
+    const sealed = sealTarget(target.href);
+    qInsert.run(code, sealed.target, ip, Date.now() + TTL_MS, sealed.iv, sealed.tag, target.pasteId);
     return send(res, 200, publicBase + '/' + code);
   }
 

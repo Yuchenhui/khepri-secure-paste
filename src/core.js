@@ -10,6 +10,12 @@ const { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJ
 const PORT = Number(process.env.PORT || 8080);
 const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
 const SHORTENER = process.env.SHORTENER_URL ? configuredHttpBase(process.env.SHORTENER_URL, true) : '';
+// The shortener is told when a paste is gone, so the link stops pointing at
+// something that can no longer be opened. It answers on the loopback: the two
+// services share a host, so they talk over it rather than over the internet.
+const SHORTENER_INTERNAL = process.env.SHORTENER_INTERNAL_URL
+  ? configuredHttpBase(process.env.SHORTENER_INTERNAL_URL, true) : '';
+const SHORTENER_KEY = process.env.SHORTENER_INTERNAL_KEY || '';
 const MAX_BODY = 1024 * 1024;
 // 1024 was the in-memory era's guard on a Map. On disk the byte cap governs, so
 // the row cap only matters for very small pastes and is set well above them.
@@ -143,9 +149,36 @@ function dropPaste(id) {
   return true;
 }
 
+// A short link outlives the paste it points at unless somebody says otherwise:
+// the paste is gone, but the code still resolves and only fails at the door.
+// The shortener is told to drop the links for this paste, so the code stops
+// working at the same moment the paste does.
+//
+// The call is fire and forget. It is made outside any transaction, because a
+// network round trip must never hold the database lock, and a failure must
+// never fail the read that triggered it: the worst case is a link that lives
+// until its own expiry, which is what happened before this existed at all.
+function forgetShortLinks(id) {
+  if (!SHORTENER_INTERNAL || !SHORTENER_KEY) return;
+  fetch(SHORTENER_INTERNAL + '/internal/paste/' + id, {
+    method: 'DELETE',
+    headers: { 'x-internal-key': SHORTENER_KEY },
+    signal: AbortSignal.timeout(5000),
+  }).then((r) => {
+    if (!r.ok) console.error('could not drop the short links for a paste:', r.status);
+  }).catch((err) => {
+    console.error('could not drop the short links for a paste:', err.message);
+  });
+}
+
 function evictOldest(limit) {
   let evicted = 0;
-  for (const row of qOldest.all(limit)) if (dropPaste(row.id)) evicted += 1;
+  for (const row of qOldest.all(limit)) {
+    if (dropPaste(row.id)) {
+      evicted += 1;
+      forgetShortLinks(row.id);
+    }
+  }
   return evicted;
 }
 
@@ -365,7 +398,7 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       // an outsider learns either way.
       if (!row) return fail(req, res, 404, 'never existed');
       if (row.expires <= now) {
-        dropPaste(id);
+        if (dropPaste(id)) forgetShortLinks(id);
         return fail(req, res, 404, 'expired');
       }
       if (row.pinnedTo && row.pinnedTo !== ip) return fail(req, res, 404, 'pinned elsewhere');
@@ -383,18 +416,19 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
     let status = 404;
     let reason = 'never existed';
     let row = null;
+    let dropped = false;
     db.exec('BEGIN IMMEDIATE');
     try {
       row = qGet.get(id);
       if (row && row.expires <= now) {
-        dropPaste(id);
+        dropped = dropPaste(id);
         reason = 'expired';
       } else if (row && row.pinnedTo && row.pinnedTo !== ip) {
         reason = 'pinned elsewhere';
       } else if (row && timingSafeEqual(hash, Buffer.from(row.claimHash))) {
         if (row.pinIp) qSetPinned.run(ip, id);
         if (row.reads > 0) {
-          if (row.reads === 1) dropPaste(id);
+          if (row.reads === 1) dropped = dropPaste(id);
           else qSetReads.run(row.reads - 1, id);
         }
         status = 200;
@@ -407,6 +441,9 @@ const server = http.createServer(HTTP_OPTIONS, async (req, res) => {
       console.error('read failed:', err.message);
       return fail(req, res, 500, 'storage error');
     }
+    // Only now that the paste is really gone: the link is dropped after the
+    // transaction that removed the paste has committed.
+    if (dropped) forgetShortLinks(id);
     if (status === 200) stats.reads += 1;
     if (status !== 200) return fail(req, res, status, reason);
     return send(res, status, { ct: row.ct, iv: row.iv });
@@ -431,7 +468,12 @@ setInterval(() => {
   const now = Date.now();
   let expired = 0;
   try {
-    for (const row of qExpired.all(now)) if (dropPaste(row.id)) expired += 1;
+    for (const row of qExpired.all(now)) {
+      if (dropPaste(row.id)) {
+        expired += 1;
+        forgetShortLinks(row.id);
+      }
+    }
     stats.expired += expired;
     // Every minute, not only when something expired: a quiet store would
     // otherwise carry a WAL that grows with traffic and never gets truncated,

@@ -6,7 +6,8 @@ the server never sees what you wrote.
 The browser encrypts before anything is sent, so the key travels inside the
 link. Whoever you send it to is the only one who can open it. A paste can
 delete itself after a single read, and a short link (`/s/XXXXX`) keeps the URL
-small enough to retype on a locked-down console.
+small enough to retype on a locked-down console. A short link ends with its
+paste: once the paste is read, burnt or expired, the code stops working.
 
 Running at https://paste.vantolab.com/.
 
@@ -86,6 +87,24 @@ docker run -d --name khepri-short -p 8081:8080 \
 
 Give the core `SHORTENER_URL=http://localhost:8081` and the two services will
 hand out short links.
+
+A short link must stop working when its paste does, and the paste is the one
+that knows when that happens. So the core tells the shortener, over the
+loopback, and the shortener drops the links for that paste. Give both
+services one shared secret and point the core at the shortener:
+
+```bash
+# on the shortener
+-e SHORTENER_INTERNAL_KEY="$(openssl rand -base64 32)"
+# on the core
+-e SHORTENER_INTERNAL_URL=http://127.0.0.1:8081 \
+-e SHORTENER_INTERNAL_KEY="the same secret"
+```
+
+Without them the two still work, but a burnt paste leaves its short code
+behind: the code resolves and only fails at the door, which is the state this
+pairing is there to prevent. The secret is what tells the two services apart
+from anyone else; keep it out of the image and off the wire.
 
 ## Programmatic access
 
