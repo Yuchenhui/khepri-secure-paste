@@ -5,7 +5,13 @@ const $ = (id) => document.getElementById(id);
 // paste plus a stolen key has to brute force, so new pastes use the ceiling.
 // Pastes created earlier keep the count they were made with.
 const ITERATIONS = 1000000;
-const MAX_FILE_BYTES = 256 * 1024;
+// A file is base64-encoded into the payload, and then the whole payload is
+// encrypted and base64-encoded again, so its bytes cost (4/3)^2 ≈ 1.778 times
+// their own size in the request. Inside the server's 1 MiB body cap, minus the
+// JSON frame and the file metadata, that leaves about 574 KB; 512 keeps a
+// margin for a longer file name. MAX_BODY and the nginx client_max_body_size
+// are unchanged, so a paste still never exceeds 1 MiB.
+const MAX_FILE_BYTES = 512 * 1024;
 // Same ceiling as core.js MAX_BODY. The request is pure ASCII (base64url), so
 // string length and byte length agree and the check can run before sending.
 const MAX_REQUEST_BYTES = 1024 * 1024;

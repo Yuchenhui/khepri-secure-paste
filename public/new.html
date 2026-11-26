@@ -84,9 +84,13 @@
 
   [hidden] { display: none !important; }
 
-  body { margin: 0; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* The message card floats over the top of the viewport. This padding is the
+     slot it lives in: always there, never changing, so the heading below never
+     moves when the card appears or goes. 60px is the card's own 43px plus the
+     16px gap above it, plus a little. */
+  body { margin: 0; padding-block-start: 60px; background: var(--canvas); color: var(--ink); font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
 
-  main { width: min(calc(100% - 48px), 60rem); margin: clamp(36px, 7vh, 80px) auto 40px; ; }
+  main { width: min(calc(100% - 48px), 60rem); margin: clamp(36px, 7vh, 80px) auto 40px; }
 
   /* While the message card is up, the page keeps a slot for it: the card
 
@@ -260,11 +264,12 @@
 
   /* Hidden until there is a message, like the read page's card. */
 
-  /* The card sits in the page, above the content, and takes its own row:
+  /* The card floats at the top of the viewport and never moves the page: the
+     body always reserves exactly its height, so the heading sits where it sits
+     whether the card is up or not. It used to sit in the flow before <main>,
+     which pushed the whole page down the moment it appeared. */
 
-     nothing floats over it and it floats over nothing. */
-
-  .create-feedback { display: none; align-items: center; gap: 12px; width: min(34rem, calc(100% - 32px)); margin: 16px auto 0; }
+  .create-feedback { display: none; position: fixed; z-index: 10; inset-inline: 0; inset-block-start: 16px; align-items: center; gap: 12px; width: min(34rem, calc(100% - 32px)); margin-inline: auto; }
 
   .create-feedback:has(#createError:not(:empty)) {
 
@@ -499,7 +504,7 @@
 
       <p id="sizeState" class="size-state" role="status"></p>
 
-      <p class="size-hint">Limit 1 MiB once encrypted, base64 and JSON included — about 786,000 ASCII characters, 262,000 CJK or 196,000 emoji; one file up to 256 KB.</p>
+      <p class="size-hint">Limit 1 MiB once encrypted, base64 and JSON included — about 786,000 ASCII characters, 262,000 CJK or 196,000 emoji; one file up to 512 KB.</p>
 
     </div>
 
