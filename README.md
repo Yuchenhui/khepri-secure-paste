@@ -113,8 +113,18 @@ node khepri-push.cjs "the content" --short --len 6 --ttl 3600 --burn
 short code; a wrong `Origin` is still refused. The shortener sees the full URL
 including the key, which is the same trade-off the web page makes.
 
-Full field-by-field contract, the zero-dependency reference implementation, and
-the error table are in the `khepri-paste` skill.
+Reading back is symmetric — the link alone is enough, no extra secret to keep:
+
+```bash
+node khepri-fetch.cjs "https://paste.vantolab.com/?<id>#<key>" --out ./file.bin
+```
+
+A file uploaded with `--file` comes back as the same name and the same bytes; a
+text paste prints. A paste made with `--password` needs the same password, and a
+wrong one fails the authentication instead of returning garbage.
+
+Full field-by-field contract, both zero-dependency reference clients, and the
+error table are in the `khepri-paste` skill.
 
 ## Versions
 
