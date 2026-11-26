@@ -260,8 +260,12 @@
   /* The workbench is bounded by the viewport, not by its content: without this
      the editor column is as tall as whatever was pasted, which on a short screen
      pushes the result card off screen. The editor keeps its minimum so an empty
-     form still looks like a form, and the textarea stays manually resizable. */
-  .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, .48fr); align-items: stretch; height: clamp(20rem, calc(100vh - 15rem), 40rem); }
+     form still looks like a form, and the textarea stays manually resizable.
+
+     A minimum, not a fixed height: the settings column grows when the advanced
+     options are open, and a fixed height would let that content push out past
+     the panel's own border, leaving the dark editor hanging below the card. */
+  .workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, .48fr); align-items: stretch; min-height: clamp(20rem, calc(100vh - 15rem), 40rem); }
 
   .editor { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; min-height: 0; padding: 18px 22px 22px; border-radius: 13px 0 0 13px; background: var(--editor); color: var(--editor-text); }
 
@@ -450,6 +454,11 @@
   summary { width: fit-content; color: var(--muted); font-size: .8125rem; cursor: pointer; transition: color 160ms var(--ease-out); }
 
   .advanced { margin: 0; padding: 0; border: 0; }
+
+  /* The browser hides the body of a closed details element, but its own rule
+     is weaker than the .field rule below, so the field stayed visible and the
+     toggle did nothing. Say it here, in the same strength. */
+  .advanced:not([open]) > .field { display: none; }
 
   .advanced summary { min-height: 30px; line-height: 30px; }
 
