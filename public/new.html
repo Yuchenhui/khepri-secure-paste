@@ -349,16 +349,20 @@
 
     /* Unfolds from the title it hangs off, so the bubble appears to be spoken. */
 
-    .create-feedback:has(#createError:not(:empty)) { animation: bubble-speak 180ms cubic-bezier(.2, .9, .3, 1); transform-origin: left center; }
+    .create-feedback.speaking { animation: bubble-speak 180ms cubic-bezier(.2, .9, .3, 1); transform-origin: left center; }
 
     @keyframes bubble-speak { from { opacity: 0; transform: scale(.96) translateX(-6px); } }
 
     /* The title flinches when it has something to say — one short shake, not a
-       loop. A loop reads as a glitch; a single flinch reads as a person. One
-       :has() on the masthead is enough, and it has to be one: :has() cannot be
-       nested, and the nested form is dropped as invalid. */
+       loop. A loop reads as a glitch; a single flinch reads as a person.
 
-    .masthead:has(#createError:not(:empty)) h1 { animation: title-flinch 320ms cubic-bezier(.36, .07, .19, .97); }
+       Both animations hang off a class the script adds, not off the words
+       themselves: a CSS animation plays only when the rule carrying it starts
+       matching, so the same message twice would stay silent the second time.
+       The script drops the class and puts it back, which makes the browser
+       build the animation again and play it from the start. */
+
+    .masthead.speaking h1 { animation: title-flinch 320ms cubic-bezier(.36, .07, .19, .97); }
 
     @keyframes title-flinch {
       0% { transform: translateX(0); }

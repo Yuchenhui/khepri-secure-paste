@@ -177,16 +177,21 @@
 
     /* Unfolds from the title it hangs off, so the bubble appears to be spoken. */
 
-    .read-feedback:has(#readErrorTitle:not(:empty)),
-    .read-feedback:has(#readErrorBody:not(:empty)) { animation: bubble-speak 180ms cubic-bezier(.2, .9, .3, 1); transform-origin: left center; }
+    .read-feedback.speaking { animation: bubble-speak 180ms cubic-bezier(.2, .9, .3, 1); transform-origin: left center; }
 
     @keyframes bubble-speak { from { opacity: 0; transform: scale(.96) translateX(-6px); } }
 
     /* The title flinches when it has bad news — one short shake, not a loop. A loop
        reads as a glitch; a single flinch reads as a person. Progress is not a
-       fault, so the title stays still while a check is running. */
+       fault, so the title stays still while a check is running.
 
-    .masthead:has(#readError:not([data-tone="neutral"])):has(#readErrorTitle:not(:empty)) h1 { animation: title-flinch 320ms cubic-bezier(.36, .07, .19, .97); }
+       Both animations hang off a class the script adds, not off the words
+       themselves: a CSS animation plays only when the rule carrying it starts
+       matching, so the same message twice would stay silent the second time.
+       The script drops the class and puts it back, which makes the browser
+       build the animation again and play it from the start. */
+
+    .masthead.speaking h1 { animation: title-flinch 320ms cubic-bezier(.36, .07, .19, .97); }
 
     @keyframes title-flinch {
       0% { transform: translateX(0); }

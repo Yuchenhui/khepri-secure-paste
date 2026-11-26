@@ -120,6 +120,28 @@ function setReadError(title, message, tone = 'danger') {
   $('readError').dataset.tone = tone;
   $('readErrorTitle').textContent = title || '';
   $('readErrorBody').textContent = message || '';
+  speakRead(title || message, tone);
+}
+
+// The bubble unfolds and the title flinches when the page has something to
+// say. A CSS animation plays only once, when the rule carrying it starts
+// matching, so saying the same thing twice would be silent the second time.
+// Dropping the class and putting it back builds the animation again and plays
+// it from the start, which is what a second click on the same mistake should
+// feel like.
+function speakRead(message, tone) {
+  const masthead = document.querySelector('.masthead');
+  const bubble = document.querySelector('.read-feedback');
+  masthead.classList.remove('speaking');
+  bubble.classList.remove('speaking');
+  if (!message) return;
+  // A reflow between the two, so the browser sees the class gone before it
+  // comes back: without it the class never leaves and the animation never
+  // restarts.
+  void bubble.offsetWidth;
+  bubble.classList.add('speaking');
+  // Progress is not a fault: the title stays still while a check is running.
+  if (tone !== 'neutral') masthead.classList.add('speaking');
 }
 
 function wrapToggleFor(setWrap) {

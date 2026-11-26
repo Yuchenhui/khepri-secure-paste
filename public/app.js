@@ -537,6 +537,27 @@ function setCreateError(message) {
   const dismissFocused = document.activeElement === $('dismissCreateError');
   $('createError').textContent = message;
   if (!message && dismissFocused) $('go').focus({ preventScroll: true });
+  speak(message);
+}
+
+// The bubble unfolds and the title flinches when the page has something to
+// say. A CSS animation plays only once, when the rule carrying it starts
+// matching, so saying the same thing twice would be silent the second time.
+// Dropping the class and putting it back builds the animation again and plays
+// it from the start, which is what a second click on the same mistake should
+// feel like.
+function speak(message) {
+  const masthead = document.querySelector('.masthead');
+  const bubble = document.querySelector('.create-feedback');
+  masthead.classList.remove('speaking');
+  bubble.classList.remove('speaking');
+  if (!message) return;
+  // A reflow between the two, so the browser sees the class gone before it
+  // comes back: without it the class never leaves and the animation never
+  // restarts.
+  void bubble.offsetWidth;
+  masthead.classList.add('speaking');
+  bubble.classList.add('speaking');
 }
 
 $('dismissCreateError').onclick = () => setCreateError('');
