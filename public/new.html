@@ -100,11 +100,26 @@
      must not be 1fr — that pushes the bubble to the far edge of the page and
      leaves a desert between the title and what it is supposed to be saying. */
 
-  .masthead { display: grid; grid-template-columns: auto auto; align-items: center; justify-content: start; column-gap: 18px; margin-bottom: 32px; }
+  /* One masthead for both pages: the title, its message, and the short-code
+     lookup, in that order. Three columns so the lookup keeps its place at the
+     end whether or not the title is speaking. */
+
+  .masthead { display: grid; grid-template-columns: auto auto 1fr; align-items: center; justify-content: start; column-gap: 18px; margin-bottom: 32px; }
 
   h1 { margin: 0; font-size: clamp(2rem, 4.4vw, 2.75rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.1; }
 
   .masthead p { grid-column: 1 / -1; max-width: 52ch; margin: 12px 0 0; color: var(--muted); font-size: 1.0625rem; }
+
+/* The short-code lookup: a handful of characters beside the title. */
+
+  .lookup { position: relative; display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 10px; }
+
+  .lookup .input { width: 13ch; min-width: 0; min-height: 36px; padding: 6px 10px; }
+
+  .lookup .button { min-height: 36px; padding: 6px 12px; }/* The lookup sits at the end of the row, right-aligned, and keeps its place
+     whether or not the title is speaking. */
+
+  .lookup { justify-self: end; }
 
   /* The heading's speech bubble. Left-aligned in its column so it reads as
      belonging to the title, with an arrow pointing back at it. */
@@ -115,7 +130,7 @@
 
     position: relative; display: flex; align-items: center; gap: 10px;
 
-    max-width: min(26rem, calc(100vw - 8rem)); padding: 10px 12px;
+    max-width: min(34rem, calc(100vw - 8rem)); padding: 10px 12px;
 
     border: 1px solid var(--line); border-radius: 10px; background: var(--paper);
 
@@ -323,7 +338,7 @@
 
   }
 
-  #createError { flex: 1; min-width: 0; margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--danger); }
+  #createError { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: .875rem; line-height: 1.5; color: var(--danger); overflow-wrap: anywhere; }
 
   @media (prefers-reduced-motion: no-preference) {
 
@@ -516,6 +531,17 @@
       </button>
 
     </div>
+
+    <!-- The same lookup the read page carries, so both headers offer the same
+         things in the same places. On this page it opens a paste someone sent
+         you without leaving the form. -->
+    <form id="shortLookup" class="panel lookup" novalidate hidden>
+
+      <input id="shortCode" type="text" class="input" placeholder="Short code" aria-label="Short code" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" maxlength="8">
+
+      <button id="shortOpen" class="button" type="submit" disabled>Open</button>
+
+    </form>
 
     <p>Share text, code, or a small file using an encrypted link.</p>
 

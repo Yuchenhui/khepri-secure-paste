@@ -541,6 +541,67 @@ function setCreateError(message) {
 
 $('dismissCreateError').onclick = () => setCreateError('');
 
+// The short-code lookup, the same one the read page carries: paste a code and
+// it opens that paste. Only letters and digits, only 3 to 8 of them, and no
+// native validation bubble in the browser's own language.
+if (SHORTENER) {
+  const lookupForm = $('shortLookup');
+  const lookupInput = $('shortCode');
+  const lookupOpen = $('shortOpen');
+  lookupForm.hidden = false;
+
+  lookupInput.addEventListener('input', () => {
+    const clean = lookupInput.value.replace(/[^A-Za-z0-9]/g, '');
+    if (clean !== lookupInput.value) {
+      const atEnd = lookupInput.selectionStart === lookupInput.value.length;
+      lookupInput.value = clean;
+      if (atEnd) lookupInput.setSelectionRange(clean.length, clean.length);
+    }
+    lookupOpen.disabled = lookupInput.value.length < 3;
+  });
+  lookupForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const code = lookupInput.value.trim();
+    if (!/^[A-Za-z0-9]{3,8}$/.test(code)) return;
+    // Ask the shortener first, so a code that does not resolve is explained on
+    // this page instead of dumping the reader on a bare 404.
+    lookupInput.disabled = true;
+    lookupOpen.disabled = true;
+    const timer = setTimeout(() => setCreateError('Still checking that code…'), 2000);
+    (async () => {
+      try {
+        const r = await fetch(SHORTENER + '/' + code, {
+          method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(10000),
+        });
+        if (r.type === 'opaqueredirect' || (r.status >= 300 && r.status < 400 && r.headers.get('Location'))) {
+          location.assign(SHORTENER + '/' + code);
+          return;
+        }
+        if (r.status === 404) {
+          setCreateError('No paste under that code. It expired, or the code is wrong.');
+          return;
+        }
+        if (r.status === 429) {
+          setCreateError('Too many requests. Wait a minute and try again.');
+          return;
+        }
+        if (!r.ok) {
+          setCreateError('The short link service is down. Try again in a moment.');
+          return;
+        }
+        location.assign(SHORTENER + '/' + code);
+      } catch {
+        setCreateError('Could not reach the short link service. Check the connection.');
+      } finally {
+        clearTimeout(timer);
+        lookupInput.disabled = false;
+        lookupOpen.disabled = lookupInput.value.length < 3;
+      }
+    })();
+  });
+}
+
+
 $('go').onclick = async () => {
   const btn = $('go');
   const file = attached;
