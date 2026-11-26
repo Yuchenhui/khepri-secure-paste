@@ -233,9 +233,9 @@ describe('request size', () => {
   before(async () => { server = await startCore(); });
   after(async () => { await server.stop(); });
 
-  test('exactly 2 MiB is accepted, one byte more is a 413', async () => {
+  test('exactly 1 MiB is accepted, one byte more is a 413', async () => {
     const c = client(server, '10.4.0.1');
-    const target = 2 * 1024 * 1024;
+    const target = 1024 * 1024;
 
     const build = (total) => {
       const p = paste();
@@ -254,7 +254,7 @@ describe('request size', () => {
   test('a chunked body without Content-Length is counted too', async () => {
     const p = paste();
     const withoutPad = JSON.stringify({ ...p.body, pad: '' }).length;
-    const body = JSON.stringify({ ...p.body, pad: 'A'.repeat(2 * 1024 * 1024 + 100 - withoutPad) });
+    const body = JSON.stringify({ ...p.body, pad: 'A'.repeat(1024 * 1024 + 100 - withoutPad) });
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(new TextEncoder().encode(body));

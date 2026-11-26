@@ -18,7 +18,7 @@ Running at https://paste.vantolab.com/.
 
 ## What it does
 
-- Text, or one file of up to 1 MB.
+- Text, or one file of up to 512 KB.
 - Encrypted in the browser. The server keeps the ciphertext, a paste id and the
   limits you set.
 - An optional password, so the link on its own is not enough.
@@ -97,8 +97,8 @@ always name the same build. The current release is
 
 ## Limits
 
-2 MiB per request, 1 MB per file, 5 GiB and 200000 pastes on disk, 100000
-short links. Per client: 4 MiB, 32 pastes, 200 live short codes. Rate limits
+1 MiB per request, 512 KB per file, 5 GiB and 200000 pastes on disk, 100000
+short links. Per client: 2 MiB, 32 pastes, 200 live short codes. Rate limits
 are 60 requests a minute on the core and 120 on the shortener. A paste lives
 at most `TTL_HOURS` (24 by default, 168 in the deployment); the form starts at
 six hours. Expired pastes are swept out every minute.

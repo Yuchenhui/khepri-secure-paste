@@ -10,12 +10,7 @@ const { HTTP_OPTIONS, configuredHttpBase, clientIp, createRateLimit, send, readJ
 const PORT = Number(process.env.PORT || 8080);
 const TTL_MS = Number(process.env.TTL_HOURS || 24) * 3600000;
 const SHORTENER = process.env.SHORTENER_URL ? configuredHttpBase(process.env.SHORTENER_URL, true) : '';
-// 2 MiB: one request carries a file that has been base64-encoded twice (once
-// into the payload, once as the ciphertext), so its bytes cost (4/3)^2 ≈ 1.778x
-// here. This leaves room for a file of about 1.15 MB. The same ceiling governs a
-// plain text paste, which can therefore be about 1.6 million ASCII characters;
-// the disk cap and the per-client quota below are what keep that bounded.
-const MAX_BODY = 2 * 1024 * 1024;
+const MAX_BODY = 1024 * 1024;
 // 1024 was the in-memory era's guard on a Map. On disk the byte cap governs, so
 // the row cap only matters for very small pastes and is set well above them.
 const MAX_PASTES = Number(process.env.MAX_PASTES || 200000);
