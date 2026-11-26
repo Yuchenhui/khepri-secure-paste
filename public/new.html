@@ -423,7 +423,10 @@
 
   #shortState:not(:empty), #shortNote:not(:empty) { margin: 14px 0 0; }
 
-  .result-main { display: grid; gap: 18px; min-width: 0; }
+  /* The bubble is placed against this box, so it hangs at the card's edge
+     rather than at the edge of the window. */
+
+  .result-main { position: relative; display: grid; gap: 18px; min-width: 0; }
 
   .result-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 
@@ -449,9 +452,99 @@
 
   .result-actions .button.secondary { min-height: 36px; font-size: .8125rem; }
 
-  .qr { display: grid; justify-items: start; gap: 8px; margin-top: 16px; }
+  /* The QR code hangs off its own button. It floats above the card instead
+     of sitting in it: the card is about the link, and the code is one way of
+     reaching it. The anchor is what the arrow points back at. */
+
+  /* The bubble is placed against the window, not the card: a card that sits
+     low on the page would push the code off the bottom of the screen. The
+     script finds the room it has and puts it where it fits. */
+
+  .qr {
+    position: fixed; z-index: 30; inset-block-start: var(--qr-top, 50vh); inset-inline-start: var(--qr-left, 50vw);
+
+    display: grid; justify-items: start; gap: 8px; width: max-content; max-width: min(20rem, calc(100vw - 32px));
+
+    padding: 12px; border: 1px solid var(--control); border-radius: 12px;
+
+    background: var(--paper);
+
+    /* One edge, not two: the border says where the bubble ends, and the short
+       shadow under it says it floats above the page. A wide soft shadow as
+       well would give two answers to the same question. */
+
+    box-shadow: 0 4px 10px -6px rgb(27 36 49 / 0.28);
+
+  }
+
+  /* The arrow points up, at the button the code belongs to. It is drawn from
+     the card's own colours, so it reads as part of the bubble. */
+
+  .qr::before {
+
+    content: ""; position: absolute; inset-block-end: 100%; inset-inline-start: var(--qr-arrow, 18px);
+
+    width: 11px; height: 11px; margin-block-end: -6px; margin-inline-start: -5.5px;
+
+    background: var(--paper); border-inline-start: 1px solid var(--control);
+
+    border-block-start: 1px solid var(--control); transform: rotate(45deg);
+
+  }
+
+  /* Opened above the button, the arrow points down at it instead. */
+
+  .qr.above::before {
+
+    inset-block-end: auto; inset-block-start: 100%; margin-block-end: 0; margin-block-start: -6px;
+
+    border-inline-start: 0; border-block-start: 0;
+
+    border-inline-end: 1px solid var(--control); border-block-end: 1px solid var(--control);
+
+  }
+
+  /* Opened beside the button, the arrow points left at it. */
+
+  .qr.beside::before {
+
+    inset-block-end: auto; inset-block-start: 50%; inset-inline-start: auto;
+
+    inset-inline-end: 100%; margin-block-end: 0; margin-inline-end: -6px; margin-inline-start: 0;
+
+    border-inline-start: 0; border-block-start: 0;
+
+    border-inline-end: 1px solid var(--control); border-block-end: 1px solid var(--control);
+
+  }
 
   .qr canvas { display: block; border-radius: 6px; background: #ffffff; }
+
+  /* The code is read with a phone, so it is the one thing in the bubble that
+     gets to be square and unbroken. */
+
+  .qr .note { margin: 0; max-width: 22ch; }
+
+  /* The bubble has its own head, so the close mark never sits on the code it
+     would cover. */
+
+  .qr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+
+  .qr-title { font: 550 .6875rem/1 system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+  .qr-close {
+
+    display: grid; place-items: center; width: 24px; height: 24px; padding: 0;
+
+    border: 0; border-radius: 6px; background: none; color: var(--muted);
+
+    cursor: pointer; transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+
+  }
+
+  .qr-close:hover { background: var(--tint); color: var(--ink); }
+
+  .qr-close svg { pointer-events: none; }
 
   details { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
 
@@ -515,6 +608,16 @@
     #out { margin-top: 16px; padding: 20px 18px; }
 
     .code { font-size: clamp(2rem, 11vw, 2.75rem); }
+
+    /* On a narrow screen the bubble would hang off the edge of the card, so it
+       sits at the foot of the screen instead, clear of the thumb. It no longer
+       points at anything, so it has no arrow. */
+
+    .qr { inset-block: auto 16px; inset-inline: 16px; width: auto; max-width: none; justify-items: center; }
+
+    .qr::before { display: none; }
+
+    .qr .note { text-align: center; }
 
   }
 
@@ -732,17 +835,9 @@
 
         <button id="copyMain" class="button" type="button">Copy link</button>
 
-        <button id="showQr" class="button secondary" type="button" aria-expanded="false">QR code</button>
+        <button id="showQr" class="button secondary" type="button" aria-expanded="false" aria-controls="qrBox">QR code</button>
 
       </div>
-
-    </div>
-
-    <div id="qrBox" class="qr" hidden>
-
-      <canvas id="qrCanvas" role="img" aria-label="QR code for this paste link"></canvas>
-
-      <p class="note">Scan to open the link on another device. Same key, same lifetime.</p>
 
     </div>
 
@@ -779,6 +874,26 @@
   </footer>
 
 </main>
+
+<!-- The code is a way in, not the main event. It floats on its own, above
+     the page and outside every card, so it never sits inside one and never
+     pushes the card around. The arrow points back at the button that opened
+     it. -->
+
+<div id="qrBox" class="qr" role="dialog" aria-label="QR code for this paste link" hidden>
+
+  <div class="qr-head">
+    <span class="qr-title">Scan to open</span>
+    <button id="qrClose" class="qr-close" type="button" aria-label="Close">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 3 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <canvas id="qrCanvas" role="img" aria-label="QR code for this paste link"></canvas>
+
+  <p class="note">Same key, same lifetime.</p>
+
+</div>
 
 <script src="/app.js"></script>
 

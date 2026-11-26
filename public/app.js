@@ -485,12 +485,85 @@ function drawQr(canvas, qr) {
   }
 }
 
-$('showQr').onclick = async () => {
+// The QR code is a bubble on its own button. Opening and closing it is a
+// small piece of state that three different things can end: the button, a
+// click outside, or the escape key. They all come through here, so the card
+// is never left showing a bubble whose button says otherwise.
+let qrOpen = false;
+
+function setQr(open, giveFocusBack = true) {
   const box = $('qrBox');
   const button = $('showQr');
-  if (!box.hidden) {
-    box.hidden = true;
-    button.setAttribute('aria-expanded', 'false');
+  qrOpen = open;
+  box.hidden = !open;
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  // Focus goes back to the button when the reader put the bubble away. A
+  // reset is not that: it must not pull the focus out of wherever it was.
+  if (!open && giveFocusBack) button.focus({ preventScroll: true });
+}
+
+// The bubble is placed against the window. It prefers to open under the
+// button that opened it; when there is no room there, it opens above instead.
+// Either way it stays inside the window, and its arrow points at the button.
+function placeQr() {
+  const box = $('qrBox');
+  const button = $('showQr');
+  const mark = button.getBoundingClientRect();
+  const bubble = box.getBoundingClientRect();
+  const gap = 10;
+  const margin = 12;
+
+  // On a narrow screen the bubble is a panel at the foot of the screen, and
+  // the stylesheet places it there. The script only handles the wide case.
+  if (window.matchMedia('(max-width: 40rem)').matches) {
+    box.style.removeProperty('--qr-top');
+    box.style.removeProperty('--qr-left');
+    box.style.removeProperty('--qr-arrow');
+    box.classList.remove('above');
+    return;
+  }
+
+  // Two places the bubble can open, and it picks one:
+  //
+  //   beside: to the right of the button, where the card is empty. Nothing
+  //           is covered and the arrow points left.
+  //   above:  over the button, when there is no room to the right. The arrow
+  //           points down.
+  //
+  // Beside is preferred. Above is the fallback, and the two are never both:
+  // an arrow that points at a button off to one side is worse than no arrow.
+
+  const beside = mark.right + 12;
+  const fitsBeside = beside + bubble.width <= window.innerWidth - margin;
+
+  let top;
+  let left;
+  if (fitsBeside) {
+    top = Math.min(Math.max(mark.top + mark.height / 2 - bubble.height / 2, margin),
+      window.innerHeight - bubble.height - margin);
+    left = beside;
+  } else {
+    const roomAbove = mark.top;
+    const roomBelow = window.innerHeight - mark.bottom;
+    const above = roomAbove >= roomBelow;
+    top = above
+      ? Math.max(margin, mark.top - bubble.height - gap)
+      : Math.min(mark.bottom + gap, window.innerHeight - bubble.height - margin);
+    left = Math.min(Math.max(mark.right - bubble.width, margin),
+      window.innerWidth - bubble.width - margin);
+  }
+
+  box.style.setProperty('--qr-top', Math.round(top) + 'px');
+  box.style.setProperty('--qr-left', Math.round(left) + 'px');
+  // The arrow sits over the button, wherever the bubble ended up.
+  box.style.setProperty('--qr-arrow', Math.round(mark.left + mark.width / 2 - left) + 'px');
+  box.classList.toggle('above', !fitsBeside && top < mark.top);
+  box.classList.toggle('beside', fitsBeside);
+}
+
+$('showQr').onclick = async () => {
+  if (qrOpen) {
+    setQr(false);
     return;
   }
   const url = $('openUrl').href;
@@ -502,12 +575,33 @@ $('showQr').onclick = async () => {
     qr.addData(url);
     qr.make();
     drawQr($('qrCanvas'), qr);
-    box.hidden = false;
-    button.setAttribute('aria-expanded', 'true');
+    setQr(true);
+    placeQr();
+    // The bubble holds the close mark, so the focus goes there: a reader who
+    // opened it can put it away again without reaching for the mouse.
+    $('qrClose').focus({ preventScroll: true });
   } catch {
     if ($('openUrl').href === url) setCreateError('The QR code could not load. The link still works.');
   }
 };
+
+$('qrClose').onclick = () => setQr(false);
+
+// A click anywhere else puts the bubble away, the way a menu closes. The
+// button itself is not "anywhere else": pressing it again is a request to
+// close, and the click handler takes it from there.
+document.addEventListener('pointerdown', (event) => {
+  if (!qrOpen) return;
+  if (event.target.closest('#qrBox') || event.target.closest('#showQr')) return;
+  setQr(false);
+});
+
+document.addEventListener('keydown', (event) => {
+  if (qrOpen && event.key === 'Escape') {
+    event.preventDefault();
+    setQr(false);
+  }
+});
 
 async function shorten(longUrl, len) {
   const r = await fetch(SHORTENER + '/shorten', {
@@ -693,8 +787,7 @@ $('go').onclick = async () => {
       }
     }
 
-    $('qrBox').hidden = true;
-    $('showQr').setAttribute('aria-expanded', 'false');
+    setQr(false, false);
     $('longWrap').open = false;
     $('longUrl').href = longUrl;
     $('longUrl').textContent = longUrl;
