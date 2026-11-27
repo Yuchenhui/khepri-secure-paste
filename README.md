@@ -120,12 +120,22 @@ already tested against a running deployment. Point an agent at the skill and it
 can upload, take a short code, and read back, without reimplementing any of the
 crypto.
 
+The skill lives in this repository, under [`skills/`](skills/), so cloning the
+repository is all it takes to get it. To make it available to an agent, point
+the agent's skills directory at it:
+
+```bash
+ln -s "$PWD/skills/secure-online-clipboard" ~/.agents/skills/secure-online-clipboard
+```
+
 | Script | Does | Needs |
 |---|---|---|
 | `secure-online-clipboard-push.cjs` | upload | Node 18+, no packages |
 | `secure-online-clipboard-fetch.cjs` | read back | Node 18+, no packages |
 | `secure-online-clipboard-push.py` | upload | Python 3.8+ + `cryptography` |
 | `secure-online-clipboard-fetch.py` | read back | Python 3.8+ + `cryptography` |
+
+They live in `skills/secure-online-clipboard/scripts/`.
 
 The skill covers every parameter, the field-by-field request contract, the error
 table, and how to pick a parameter set for a given situation. PBKDF2 uses the
