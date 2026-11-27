@@ -120,13 +120,25 @@ already tested against a running deployment. Point an agent at the skill and it
 can upload, take a short code, and read back, without reimplementing any of the
 crypto.
 
-The skill lives in this repository, under [`skills/`](skills/), so cloning the
-repository is all it takes to get it. To make it available to an agent, point
-the agent's skills directory at it:
+The skill lives in this repository, under [`skills/`](skills/), so this is the
+only place it is edited. To make it available to an agent, install it from the
+repository:
 
 ```bash
-ln -s "$PWD/skills/secure-online-clipboard" ~/.agents/skills/secure-online-clipboard
+npx -y skills add Yuchenhui/khepri-secure-paste \
+  --skill secure-online-clipboard --agent universal --copy --yes
 ```
+
+The copy lands in the agent's skills directory as a real copy, not a link, so
+the agent sees one stable set of files while the repository stays the source of
+truth.
+
+This skill is also registered as an external skill in
+[`pc-tweaks`](https://github.com/Yuchenhui/pc-tweaks), the repository that
+manages the machine's agent setup: `skills/registry.json` lists it under
+`kind: third` with the install command above, so a machine set up from that
+registry gets this skill the same way it gets every other external one. Nothing
+is vendored there — the registry points at this repository.
 
 | Script | Does | Needs |
 |---|---|---|
